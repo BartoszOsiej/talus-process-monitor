@@ -26,3 +26,14 @@ Zanim powstanie issue, sprawdz czy nie istnieje juz na liscie. Opisz:
 - Opisuj "dlaczego", nie tylko "co".
 
 Licencja projektu: MIT. Wysylajac PR akceptujesz ja dla swojej zmiany.
+
+## Bezpieczeństwo
+
+Talus monitoruje ransomware za pomocą eBPF — to projekt o charakterze
+bezpieczeństwa. Jeśli odkryjesz podatność, zgłoś ją prywatnie na
+`thethreadcalls@outlook.com`. Nie otwieraj publicznego issue dla
+podatności bezpieczeństwa.
+
+## Commit style
+
+`type(scope): summary` — `feat`, `fix`, `docs`, `refactor`, `test`, `chore`.
