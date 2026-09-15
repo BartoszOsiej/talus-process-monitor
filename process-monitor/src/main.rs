@@ -187,12 +187,8 @@ fn main() -> Result<()> {
                 eprintln!("[talus] ✓ License activated. Restart talus to apply.");
                 Ok(())
             }
-            LicenseAction::Deactivate => {
-                license::deactivate_license()
-            }
-            LicenseAction::Show => {
-                license::show_license_info()
-            }
+            LicenseAction::Deactivate => license::deactivate_license(),
+            LicenseAction::Show => license::show_license_info(),
             LicenseAction::Verify => {
                 let cache = license::verify_cached_license()?;
                 eprintln!(
@@ -202,7 +198,8 @@ fn main() -> Result<()> {
                 if let Some(ref org) = cache.payload.organization {
                     eprintln!("[talus]   Organization: {org}");
                 }
-                let features: Vec<String> = cache.payload.effective_features().into_iter().collect();
+                let features: Vec<String> =
+                    cache.payload.effective_features().into_iter().collect();
                 eprintln!("[talus]   Features: {}", features.join(", "));
                 Ok(())
             }
@@ -216,9 +213,7 @@ fn main() -> Result<()> {
                 println!("{json}");
                 Ok(())
             }
-            LicenseAction::Transfer => {
-                license::transfer_license()
-            }
+            LicenseAction::Transfer => license::transfer_license(),
             LicenseAction::Backup { dest } => {
                 let cache = license::LicenseCache::load()?
                     .context("no license found — nothing to backup")?;
@@ -250,29 +245,27 @@ fn main() -> Result<()> {
                 }
                 Ok(())
             }
-            LicenseAction::VerifyAudit => {
-                match license::verify_audit_log() {
-                    Ok(n) => {
-                        println!("═══════════════════════════════════════════════════");
-                        println!("  AUDIT LOG INTEGRITY CHECK");
-                        println!("═══════════════════════════════════════════════════");
-                        println!("  Status:   ✓ VALID");
-                        println!("  Entries:  {n} verified, 0 corrupted");
-                        println!("  Chain:    intact (hash chain verified)");
-                        println!("═══════════════════════════════════════════════════");
-                        Ok(())
-                    }
-                    Err(e) => {
-                        eprintln!("═══════════════════════════════════════════════════");
-                        eprintln!("  AUDIT LOG INTEGRITY CHECK");
-                        eprintln!("═══════════════════════════════════════════════════");
-                        eprintln!("  Status:   ✗ FAILED");
-                        eprintln!("  Error:    {e}");
-                        eprintln!("═══════════════════════════════════════════════════");
-                        bail!("audit log integrity check failed");
-                    }
+            LicenseAction::VerifyAudit => match license::verify_audit_log() {
+                Ok(n) => {
+                    println!("═══════════════════════════════════════════════════");
+                    println!("  AUDIT LOG INTEGRITY CHECK");
+                    println!("═══════════════════════════════════════════════════");
+                    println!("  Status:   ✓ VALID");
+                    println!("  Entries:  {n} verified, 0 corrupted");
+                    println!("  Chain:    intact (hash chain verified)");
+                    println!("═══════════════════════════════════════════════════");
+                    Ok(())
                 }
-            }
+                Err(e) => {
+                    eprintln!("═══════════════════════════════════════════════════");
+                    eprintln!("  AUDIT LOG INTEGRITY CHECK");
+                    eprintln!("═══════════════════════════════════════════════════");
+                    eprintln!("  Status:   ✗ FAILED");
+                    eprintln!("  Error:    {e}");
+                    eprintln!("═══════════════════════════════════════════════════");
+                    bail!("audit log integrity check failed");
+                }
+            },
         },
 
         // ── Monitor — default command (requires root) ─────────────────
@@ -384,8 +377,8 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
     }
 
     let bpf_path = resolve_bpf_path(args.bpf.as_ref())?;
-    let mut monitor =
-        Monitor::start(&bpf_path, args.alert_threshold, args.auto_kill).with_context(|| {
+    let mut monitor = Monitor::start(&bpf_path, args.alert_threshold, args.auto_kill)
+        .with_context(|| {
             format!(
                 "failed to initialize the eBPF monitor using '{}'",
                 bpf_path.display()
@@ -402,9 +395,9 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
                     .join(".local/share/talus/memlp.json"),
             ),
         };
-        monitor.enable_memlp(checkpoint.as_deref()).with_context(|| {
-            "failed to initialize the MeMLP neural detection engine"
-        })?;
+        monitor
+            .enable_memlp(checkpoint.as_deref())
+            .with_context(|| "failed to initialize the MeMLP neural detection engine")?;
     }
 
     // ── Agent hardening (drop caps, seccomp, Landlock) ──────────────
@@ -419,7 +412,11 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
     let use_tui = args.tui || (!args.json && !args.plain && io::stdout().is_terminal());
 
     // ── Startup banner ───────────────────────────────────────────────
-    let banner_color = if license_state.is_activated { "\x1b[32m" } else { "\x1b[33m" };
+    let banner_color = if license_state.is_activated {
+        "\x1b[32m"
+    } else {
+        "\x1b[33m"
+    };
     let tier_label = if license_state.is_activated {
         format!("{}Enterprise{}", banner_color, "\x1b[0m")
     } else {
@@ -430,16 +427,28 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
     eprintln!("  \x1b[36m╔══════════════════════════════════════════════════╗\x1b[0m");
     eprintln!("  \x1b[36m║\x1b[0m  \x1b[1m⚡ TALUS eBPF ENDPOINT SECURITY AGENT\x1b[0m          \x1b[36m║\x1b[0m");
     eprintln!("  \x1b[36m╠══════════════════════════════════════════════════╣\x1b[0m");
-    eprintln!("  \x1b[36m║\x1b[0m  License:  {:<38} \x1b[36m║\x1b[0m", tier_label);
+    eprintln!(
+        "  \x1b[36m║\x1b[0m  License:  {:<38} \x1b[36m║\x1b[0m",
+        tier_label
+    );
     if let Some(ref org) = license_state.organization {
         eprintln!("  \x1b[36m║\x1b[0m  Org:      {:<38} \x1b[36m║\x1b[0m", org);
     }
-    eprintln!("  \x1b[36m║\x1b[0m  eBPF:     {:<38} \x1b[36m║\x1b[0m", bpf_path.display());
-    eprintln!("  \x1b[36m║\x1b[0m  Threshold: {:<37} \x1b[36m║\x1b[0m", format!("{} opens/s", args.alert_threshold));
+    eprintln!(
+        "  \x1b[36m║\x1b[0m  eBPF:     {:<38} \x1b[36m║\x1b[0m",
+        bpf_path.display()
+    );
+    eprintln!(
+        "  \x1b[36m║\x1b[0m  Threshold: {:<37} \x1b[36m║\x1b[0m",
+        format!("{} opens/s", args.alert_threshold)
+    );
     if args.memlp {
         eprintln!(
             "  \x1b[36m║\x1b[0m  MeMLP:    {:<38} \x1b[36m║\x1b[0m",
-            format!("neural engine ON ({})", monitor.memlp_stats().map(|(_, p)| p).unwrap_or(0))
+            format!(
+                "neural engine ON ({})",
+                monitor.memlp_stats().map(|(_, p)| p).unwrap_or(0)
+            )
         );
     }
     if args.auto_kill {
@@ -740,8 +749,8 @@ fn run_diagnose(monitor: &mut Monitor) -> Result<()> {
 /// for `secs` seconds and reports events/s, peak events/s, and events by type.
 fn run_benchmark(monitor: &mut Monitor, secs: u64) -> Result<()> {
     use std::fs;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
 
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
@@ -860,7 +869,10 @@ use std::sync::Arc;
     let p95_idx = (samples.len() as f64 * 0.95) as usize;
     let mut sorted = samples.clone();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-    let p95_eps = sorted.get(p95_idx.min(sorted.len().saturating_sub(1))).copied().unwrap_or(0.0);
+    let p95_eps = sorted
+        .get(p95_idx.min(sorted.len().saturating_sub(1)))
+        .copied()
+        .unwrap_or(0.0);
 
     println!();
     println!("═══════════════════════════════════════════════════════════");
@@ -882,7 +894,10 @@ use std::sync::Arc;
     println!("  Open events:       {total_opens}");
     println!("  Network events:    {total_net}");
     println!("  Other events:      {total_other}");
-    println!("  Alerts:            {}", monitor.total_events - total_events + total_events);
+    println!(
+        "  Alerts:            {}",
+        monitor.total_events - total_events + total_events
+    );
     println!();
     if avg_eps >= 500_000.0 {
         println!("  ✓ Delivered throughput ≥ 500,000 events/s — PASS");
@@ -993,9 +1008,22 @@ fn run_json(monitor: &mut Monitor, pipeline: &storage::StoragePipeline) -> Resul
 fn run_plain(monitor: &mut Monitor, pipeline: &storage::StoragePipeline) -> Result<()> {
     use colored::Colorize;
     const NOISY: &[&str] = &[
-        "freebuff", "waybar", "upowerd", "mutter", "Xwayland", "hyprland",
-        "sway", "fuzzel", "wlsunset", "pipewire", "wireplumber",
-        "dbus-daemon", "systemd-resolve", "systemd-network", "dunst", "mako",
+        "freebuff",
+        "waybar",
+        "upowerd",
+        "mutter",
+        "Xwayland",
+        "hyprland",
+        "sway",
+        "fuzzel",
+        "wlsunset",
+        "pipewire",
+        "wireplumber",
+        "dbus-daemon",
+        "systemd-resolve",
+        "systemd-network",
+        "dunst",
+        "mako",
     ];
     loop {
         let outputs: Vec<Output> = monitor.poll().into_iter().collect();
@@ -1007,64 +1035,64 @@ fn run_plain(monitor: &mut Monitor, pipeline: &storage::StoragePipeline) -> Resu
                         continue;
                     }
                     match ev.kind {
-                    Kind::Exec => {
-                        println!(
-                            "{} {} [{}] {} by uid {}",
-                            ev.ts,
-                            "EXEC".green().bold(),
-                            ev.pid,
-                            ev.comm.bold(),
-                            ev.uid
-                        );
-                    }
-                    Kind::Open => {
-                        if let Some(file) = ev.file {
+                        Kind::Exec => {
+                            println!(
+                                "{} {} [{}] {} by uid {}",
+                                ev.ts,
+                                "EXEC".green().bold(),
+                                ev.pid,
+                                ev.comm.bold(),
+                                ev.uid
+                            );
+                        }
+                        Kind::Open => {
+                            if let Some(file) = ev.file {
+                                println!(
+                                    "{} {} [{}] {} -> {}",
+                                    ev.ts,
+                                    "OPEN".blue().bold(),
+                                    ev.pid,
+                                    ev.comm.dimmed(),
+                                    file.dimmed()
+                                );
+                            }
+                        }
+                        Kind::Connect | Kind::Accept | Kind::SendTo | Kind::RecvFrom => {
+                            let kind_str = format!("{:?}", ev.kind).to_uppercase();
+                            let addr = ev.file.as_deref().unwrap_or("?");
                             println!(
                                 "{} {} [{}] {} -> {}",
                                 ev.ts,
-                                "OPEN".blue().bold(),
+                                kind_str.magenta().bold(),
                                 ev.pid,
                                 ev.comm.dimmed(),
-                                file.dimmed()
+                                addr.dimmed()
+                            );
+                        }
+                        Kind::Mkdir | Kind::Unlink | Kind::Chmod => {
+                            let kind_str = format!("{:?}", ev.kind).to_uppercase();
+                            let path = ev.file.as_deref().unwrap_or("?");
+                            println!(
+                                "{} {} [{}] {} -> {}",
+                                ev.ts,
+                                kind_str.yellow().bold(),
+                                ev.pid,
+                                ev.comm.dimmed(),
+                                path.dimmed()
+                            );
+                        }
+                        Kind::Kill => {
+                            let details = ev.argv.as_deref().unwrap_or("?");
+                            println!(
+                                "{} {} [{}] {} -> {}",
+                                ev.ts,
+                                "KILL".red().bold(),
+                                ev.pid,
+                                ev.comm.bold(),
+                                details.dimmed()
                             );
                         }
                     }
-                    Kind::Connect | Kind::Accept | Kind::SendTo | Kind::RecvFrom => {
-                        let kind_str = format!("{:?}", ev.kind).to_uppercase();
-                        let addr = ev.file.as_deref().unwrap_or("?");
-                        println!(
-                            "{} {} [{}] {} -> {}",
-                            ev.ts,
-                            kind_str.magenta().bold(),
-                            ev.pid,
-                            ev.comm.dimmed(),
-                            addr.dimmed()
-                        );
-                    }
-                    Kind::Mkdir | Kind::Unlink | Kind::Chmod => {
-                        let kind_str = format!("{:?}", ev.kind).to_uppercase();
-                        let path = ev.file.as_deref().unwrap_or("?");
-                        println!(
-                            "{} {} [{}] {} -> {}",
-                            ev.ts,
-                            kind_str.yellow().bold(),
-                            ev.pid,
-                            ev.comm.dimmed(),
-                            path.dimmed()
-                        );
-                    }
-                    Kind::Kill => {
-                        let details = ev.argv.as_deref().unwrap_or("?");
-                        println!(
-                            "{} {} [{}] {} -> {}",
-                            ev.ts,
-                            "KILL".red().bold(),
-                            ev.pid,
-                            ev.comm.bold(),
-                            details.dimmed()
-                        );
-                    }
-                }
                 }
                 Output::Alert(al) => {
                     println!(
@@ -1074,11 +1102,17 @@ fn run_plain(monitor: &mut Monitor, pipeline: &storage::StoragePipeline) -> Resu
                         al.pid,
                         al.comm.bold(),
                         al.opens,
-                        al.memlp.map(|m| format!("  [MeMLP {}]", m.summary())).unwrap_or_default()
+                        al.memlp
+                            .map(|m| format!("  [MeMLP {}]", m.summary()))
+                            .unwrap_or_default()
                     );
                 }
                 Output::Action(act) => {
-                    let status = if act.success { "OK".green() } else { "FAILED".red() };
+                    let status = if act.success {
+                        "OK".green()
+                    } else {
+                        "FAILED".red()
+                    };
                     println!(
                         "{} {} [{}] {} — {}",
                         act.ts,

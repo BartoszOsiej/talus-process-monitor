@@ -159,7 +159,10 @@ impl MemGraphStore {
         }
 
         // For network events, track connections
-        if matches!(event.kind.as_str(), "Connect" | "Accept" | "SendTo" | "RecvFrom") {
+        if matches!(
+            event.kind.as_str(),
+            "Connect" | "Accept" | "SendTo" | "RecvFrom"
+        ) {
             if let Some(ref addr) = event.file {
                 let key = format!("{}:{}", event.pid, addr);
                 let mut cache = self.network_cache.lock().unwrap();
@@ -184,8 +187,7 @@ impl MemGraphStore {
     /// Query: find all processes that opened .enc files.
     #[allow(dead_code)]
     pub fn query_enc_opens(&self) -> Result<String, String> {
-        let query =
-            "MATCH (p:Process)-[r:OPENED]->(f:File) \
+        let query = "MATCH (p:Process)-[r:OPENED]->(f:File) \
              WHERE f.path ENDS WITH '.enc' \
              RETURN p.pid, p.comm, f.path, r.count \
              ORDER BY r.count DESC \

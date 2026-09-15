@@ -57,20 +57,36 @@ unsafe fn raw_copy(dst: *mut u8, src: *const u8, len: usize) {
 /// Write signal name bytes into dst at pos using pointer arithmetic. Returns new pos.
 #[inline(always)]
 unsafe fn write_sig_ptr(dst: *mut u8, mut pos: usize, sig: i32) -> usize {
-    let name: *const u8 = if sig == 1 { b"SIGHUP".as_ptr() }
-    else if sig == 2 { b"SIGINT".as_ptr() }
-    else if sig == 3 { b"SIGQUIT".as_ptr() }
-    else if sig == 6 { b"SIGABRT".as_ptr() }
-    else if sig == 9 { b"SIGKILL".as_ptr() }
-    else if sig == 15 { b"SIGTERM".as_ptr() }
-    else { b"?".as_ptr() };
-    let name_len: usize = if sig == 1 { 6 }
-    else if sig == 2 { 5 }
-    else if sig == 3 { 6 }
-    else if sig == 6 { 6 }
-    else if sig == 9 { 6 }
-    else if sig == 15 { 6 }
-    else { 1 };
+    let name: *const u8 = if sig == 1 {
+        b"SIGHUP".as_ptr()
+    } else if sig == 2 {
+        b"SIGINT".as_ptr()
+    } else if sig == 3 {
+        b"SIGQUIT".as_ptr()
+    } else if sig == 6 {
+        b"SIGABRT".as_ptr()
+    } else if sig == 9 {
+        b"SIGKILL".as_ptr()
+    } else if sig == 15 {
+        b"SIGTERM".as_ptr()
+    } else {
+        b"?".as_ptr()
+    };
+    let name_len: usize = if sig == 1 {
+        6
+    } else if sig == 2 {
+        5
+    } else if sig == 3 {
+        6
+    } else if sig == 6 {
+        6
+    } else if sig == 9 {
+        6
+    } else if sig == 15 {
+        6
+    } else {
+        1
+    };
     let mut i = 0;
     while i < name_len && pos < 127 {
         *dst.add(pos) = *name.add(i);
@@ -187,7 +203,9 @@ pub fn sys_enter_kill(ctx: TracePointContext) -> u32 {
             // Write target PID digits
             let mut v = target_pid as u32;
             if v == 0 {
-                unsafe { *argv_ptr.add(0) = b'0'; }
+                unsafe {
+                    *argv_ptr.add(0) = b'0';
+                }
                 pos = 1;
             } else {
                 let mut tmp = [0u8; 10];
@@ -199,7 +217,9 @@ pub fn sys_enter_kill(ctx: TracePointContext) -> u32 {
                 }
                 let mut i = 0;
                 while i < n {
-                    unsafe { *argv_ptr.add(pos) = tmp[n - 1 - i]; }
+                    unsafe {
+                        *argv_ptr.add(pos) = tmp[n - 1 - i];
+                    }
                     pos += 1;
                     i += 1;
                 }
@@ -207,7 +227,9 @@ pub fn sys_enter_kill(ctx: TracePointContext) -> u32 {
 
             // Write ':'
             if pos < 127 {
-                unsafe { *argv_ptr.add(pos) = b':'; }
+                unsafe {
+                    *argv_ptr.add(pos) = b':';
+                }
                 pos += 1;
             }
 

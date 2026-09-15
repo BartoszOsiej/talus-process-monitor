@@ -83,9 +83,7 @@ impl KafkaProducer {
                         // Use pid as partition key for ordering per-process
                         let key = event.pid.to_string();
 
-                        let record = BaseRecord::to(&topic)
-                            .key(&key)
-                            .payload(&payload);
+                        let record = BaseRecord::to(&topic).key(&key).payload(&payload);
 
                         if let Err((e, _)) = producer_ref.send(record) {
                             eprintln!("[kafka] failed to send event: {e}");
@@ -98,9 +96,15 @@ impl KafkaProducer {
             })
             .map_err(|e| format!("failed to spawn Kafka thread: {e}"))?;
 
-        eprintln!("[kafka] producer connected to {} topic={}", config.brokers, config.topic);
+        eprintln!(
+            "[kafka] producer connected to {} topic={}",
+            config.brokers, config.topic
+        );
 
-        Ok(Self { tx, _thread: thread })
+        Ok(Self {
+            tx,
+            _thread: thread,
+        })
     }
 
     /// Send an event to Kafka (non-blocking).

@@ -84,26 +84,27 @@ impl ClickHouseStore {
 
         thread::Builder::new()
             .name("clickhouse-flush".into())
-            .spawn(move || {
-                loop {
-                    thread::sleep(Duration::from_millis(cfg.flush_interval_ms));
-                    let batch: Vec<StorageEvent> = {
-                        let mut buf = buffer.lock().unwrap();
-                        if buf.is_empty() {
-                            continue;
-                        }
-                        let batch: Vec<StorageEvent> = buf.drain(..).collect();
-                        batch
-                    };
-
-                    if let Err(e) = flush_batch(&client, &cfg.url, &cfg.database, &batch) {
-                        eprintln!("[clickhouse] flush failed: {e}");
+            .spawn(move || loop {
+                thread::sleep(Duration::from_millis(cfg.flush_interval_ms));
+                let batch: Vec<StorageEvent> = {
+                    let mut buf = buffer.lock().unwrap();
+                    if buf.is_empty() {
+                        continue;
                     }
+                    let batch: Vec<StorageEvent> = buf.drain(..).collect();
+                    batch
+                };
+
+                if let Err(e) = flush_batch(&client, &cfg.url, &cfg.database, &batch) {
+                    eprintln!("[clickhouse] flush failed: {e}");
                 }
             })
             .map_err(|e| format!("failed to spawn flush thread: {e}"))?;
 
-        eprintln!("[clickhouse] connected to {} db={}", config.url, config.database);
+        eprintln!(
+            "[clickhouse] connected to {} db={}",
+            config.url, config.database
+        );
         Ok(store)
     }
 
@@ -153,7 +154,12 @@ impl ClickHouseStore {
             // Force immediate flush if buffer is full
             let batch: Vec<StorageEvent> = buf.drain(..).collect();
             drop(buf); // Release lock before IO
-            let _ = flush_batch(&self.client, &self.config.url, &self.config.database, &batch);
+            let _ = flush_batch(
+                &self.client,
+                &self.config.url,
+                &self.config.database,
+                &batch,
+            );
         }
     }
 }
@@ -215,7 +221,11 @@ pub fn query_top_processes(
         "SELECT comm, count() as cnt FROM {}.events WHERE kind = 'Open' GROUP BY comm ORDER BY cnt DESC LIMIT {}",
         database, n
     );
-    let url = format!("{}/?query={}&default_format=TabSeparatedWithNames", url, urlencoding::encode(&query));
+    let url = format!(
+        "{}/?query={}&default_format=TabSeparatedWithNames",
+        url,
+        urlencoding::encode(&query)
+    );
     let resp = client
         .get(&url)
         .send()

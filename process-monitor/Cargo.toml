@@ -65,7 +65,7 @@ rcgen = { version = "0.13", optional = true }
 hyper-util = { version = "0.1", optional = true, features = ["server-auto", "service", "tokio"] }
 
 # Kafka producer (optional, enabled with --features kafka)
-rdkafka = { version = "0.36", features = ["cmake-build"], optional = true }
+rdkafka = { version = "0.36", features = ["cmake-build", "ssl-vendored"], optional = true }
 
 # ClickHouse storage (optional, enabled with --features clickhouse)
 clickhouse-rs = { version = "1.1.0-alpha.1", optional = true }

@@ -5,7 +5,10 @@
 //! Reads sockaddr byte-by-byte via bpf_probe_read_user.
 
 use aya_ebpf::{
-    helpers::{bpf_get_current_comm, bpf_get_current_pid_tgid, bpf_get_current_uid_gid, bpf_probe_read_user},
+    helpers::{
+        bpf_get_current_comm, bpf_get_current_pid_tgid, bpf_get_current_uid_gid,
+        bpf_probe_read_user,
+    },
     macros::tracepoint,
     programs::TracePointContext,
 };
@@ -15,8 +18,8 @@ pub const EVENT_ACCEPT: u8 = 3;
 pub const EVENT_SENDTO: u8 = 4;
 pub const EVENT_RECVFROM: u8 = 5;
 
-use super::EVENTS;
 use super::ProcessEvent;
+use super::EVENTS;
 
 #[inline(always)]
 unsafe fn zero_event() -> ProcessEvent {
@@ -43,8 +46,14 @@ unsafe fn read_comm(event: &mut ProcessEvent) {
 /// Format a single u8 decimal digit(s) into buf at pos. Returns new pos.
 #[inline(always)]
 fn write_octet(buf: &mut [u8; 21], mut pos: usize, val: u8) -> usize {
-    if val >= 100 { buf[pos] = b'0' + val / 100; pos += 1; }
-    if val >= 10 { buf[pos] = b'0' + (val / 10) % 10; pos += 1; }
+    if val >= 100 {
+        buf[pos] = b'0' + val / 100;
+        pos += 1;
+    }
+    if val >= 10 {
+        buf[pos] = b'0' + (val / 10) % 10;
+        pos += 1;
+    }
     buf[pos] = b'0' + val % 10;
     pos + 1
 }
@@ -52,10 +61,25 @@ fn write_octet(buf: &mut [u8; 21], mut pos: usize, val: u8) -> usize {
 /// Format u16 decimal into buf at pos. Returns new pos.
 #[inline(always)]
 fn write_u16(buf: &mut [u8; 21], mut pos: usize, mut val: u16) -> usize {
-    if val >= 10000 { buf[pos] = b'0' + (val / 10000) as u8; pos += 1; val %= 10000; }
-    if val >= 1000 { buf[pos] = b'0' + (val / 1000) as u8; pos += 1; val %= 1000; }
-    if val >= 100 { buf[pos] = b'0' + (val / 100) as u8; pos += 1; val %= 100; }
-    if val >= 10 { buf[pos] = b'0' + (val / 10) as u8; pos += 1; }
+    if val >= 10000 {
+        buf[pos] = b'0' + (val / 10000) as u8;
+        pos += 1;
+        val %= 10000;
+    }
+    if val >= 1000 {
+        buf[pos] = b'0' + (val / 1000) as u8;
+        pos += 1;
+        val %= 1000;
+    }
+    if val >= 100 {
+        buf[pos] = b'0' + (val / 100) as u8;
+        pos += 1;
+        val %= 100;
+    }
+    if val >= 10 {
+        buf[pos] = b'0' + (val / 10) as u8;
+        pos += 1;
+    }
     buf[pos] = b'0' + (val % 10) as u8;
     pos + 1
 }
@@ -85,13 +109,17 @@ unsafe fn try_read_sockaddr(ctx: &TracePointContext, arg_idx: usize, event: &mut
                 // Format "A.B.C.D:PORT" — no array indexing
                 let mut buf = [0u8; 21];
                 let mut pos = write_octet(&mut buf, 0, a0);
-                buf[pos] = b'.'; pos += 1;
+                buf[pos] = b'.';
+                pos += 1;
                 pos = write_octet(&mut buf, pos, a1);
-                buf[pos] = b'.'; pos += 1;
+                buf[pos] = b'.';
+                pos += 1;
                 pos = write_octet(&mut buf, pos, a2);
-                buf[pos] = b'.'; pos += 1;
+                buf[pos] = b'.';
+                pos += 1;
                 pos = write_octet(&mut buf, pos, a3);
-                buf[pos] = b':'; pos += 1;
+                buf[pos] = b':';
+                pos += 1;
                 pos = write_u16(&mut buf, pos, port);
 
                 raw_copy(event.filename.as_mut_ptr(), buf.as_ptr(), pos);
@@ -114,8 +142,12 @@ pub fn sys_enter_connect(ctx: TracePointContext) -> u32 {
     event.event_type = EVENT_CONNECT;
     event.pid = pid;
     event.uid = uid;
-    unsafe { read_comm(&mut event); }
-    unsafe { try_read_sockaddr(&ctx, 1, &mut event); }
+    unsafe {
+        read_comm(&mut event);
+    }
+    unsafe {
+        try_read_sockaddr(&ctx, 1, &mut event);
+    }
     EVENTS.output(&ctx, &event, 0);
     0
 }
@@ -128,8 +160,12 @@ pub fn sys_enter_accept(ctx: TracePointContext) -> u32 {
     event.event_type = EVENT_ACCEPT;
     event.pid = pid;
     event.uid = uid;
-    unsafe { read_comm(&mut event); }
-    unsafe { try_read_sockaddr(&ctx, 1, &mut event); }
+    unsafe {
+        read_comm(&mut event);
+    }
+    unsafe {
+        try_read_sockaddr(&ctx, 1, &mut event);
+    }
     EVENTS.output(&ctx, &event, 0);
     0
 }
@@ -142,8 +178,12 @@ pub fn sys_enter_sendto(ctx: TracePointContext) -> u32 {
     event.event_type = EVENT_SENDTO;
     event.pid = pid;
     event.uid = uid;
-    unsafe { read_comm(&mut event); }
-    unsafe { try_read_sockaddr(&ctx, 4, &mut event); }
+    unsafe {
+        read_comm(&mut event);
+    }
+    unsafe {
+        try_read_sockaddr(&ctx, 4, &mut event);
+    }
     EVENTS.output(&ctx, &event, 0);
     0
 }
@@ -156,8 +196,12 @@ pub fn sys_enter_recvfrom(ctx: TracePointContext) -> u32 {
     event.event_type = EVENT_RECVFROM;
     event.pid = pid;
     event.uid = uid;
-    unsafe { read_comm(&mut event); }
-    unsafe { try_read_sockaddr(&ctx, 4, &mut event); }
+    unsafe {
+        read_comm(&mut event);
+    }
+    unsafe {
+        try_read_sockaddr(&ctx, 4, &mut event);
+    }
     EVENTS.output(&ctx, &event, 0);
     0
 }

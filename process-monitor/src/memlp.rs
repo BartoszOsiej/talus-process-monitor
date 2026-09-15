@@ -75,15 +75,34 @@ pub struct PidFeatures {
 /// of them in a short window. Deliberately conservative — `.bak` or `.zip`
 /// are legitimate tools too and stay out of the list.
 pub const RANSOMWARE_EXTS: &[&str] = &[
-    "enc", "crypt", "locked", "encrypted", "ransom", "locky", "cerber",
-    "wallet", "onion", "cryptolocker", "keepcalm", "restore",
+    "enc",
+    "crypt",
+    "locked",
+    "encrypted",
+    "ransom",
+    "locky",
+    "cerber",
+    "wallet",
+    "onion",
+    "cryptolocker",
+    "keepcalm",
+    "restore",
 ];
 
 /// Path fragments treated as autostart / persistence locations.
 pub const PERSISTENCE_PATHS: &[&str] = &[
-    "/etc/cron", "/etc/systemd", "/etc/init.d", "/etc/rc.local",
-    "/.config/autostart", "/.bashrc", "/.profile", "/.ssh/authorized_keys",
-    "/usr/lib/systemd", "/lib/systemd", "/etc/profile.d", "/etc/ld.so.preload",
+    "/etc/cron",
+    "/etc/systemd",
+    "/etc/init.d",
+    "/etc/rc.local",
+    "/.config/autostart",
+    "/.bashrc",
+    "/.profile",
+    "/.ssh/authorized_keys",
+    "/usr/lib/systemd",
+    "/lib/systemd",
+    "/etc/profile.d",
+    "/etc/ld.so.preload",
 ];
 
 impl PidFeatures {
@@ -330,7 +349,9 @@ impl Mlp {
             h = if k == last {
                 return softmax(&z);
             } else {
-                z.into_iter().map(|x| if x > 0.0 { x } else { 0.0 }).collect()
+                z.into_iter()
+                    .map(|x| if x > 0.0 { x } else { 0.0 })
+                    .collect()
             };
         }
         unreachable!("an MLP always has at least one weight layer")
@@ -396,7 +417,9 @@ impl Mlp {
             acts.push(if k == layers - 1 {
                 softmax(&z)
             } else {
-                z.into_iter().map(|x| if x > 0.0 { x } else { 0.0 }).collect()
+                z.into_iter()
+                    .map(|x| if x > 0.0 { x } else { 0.0 })
+                    .collect()
             });
         }
 
@@ -584,9 +607,7 @@ impl MeMLP {
 
     /// Total trainable parameters across every module.
     pub fn param_count(&self) -> usize {
-        self.ransomware.param_count()
-            + self.lateral.param_count()
-            + self.persistence.param_count()
+        self.ransomware.param_count() + self.lateral.param_count() + self.persistence.param_count()
     }
 
     /// Classify one behavioural embedding without training.
@@ -606,8 +627,14 @@ impl MeMLP {
             &one_hot(ransomware_heuristic_target(f), RANSOMWARE_CLASSES),
             learning_rate,
         );
-        let l = self.lateral.train(f, &one_hot(lateral_heuristic_target(f), 2), learning_rate);
-        let p = self.persistence.train(f, &one_hot(persistence_heuristic_target(f), 2), learning_rate);
+        let l = self
+            .lateral
+            .train(f, &one_hot(lateral_heuristic_target(f), 2), learning_rate);
+        let p = self.persistence.train(
+            f,
+            &one_hot(persistence_heuristic_target(f), 2),
+            learning_rate,
+        );
         self.training_samples += 1;
         [r, l, p]
     }
@@ -720,7 +747,10 @@ mod tests {
         let a = Mlp::new(&LATERAL_ARCH);
         let b = Mlp::new(&LATERAL_ARCH);
         assert_eq!(a.param_count(), b.param_count());
-        assert_eq!(a.weights, b.weights, "same arch must initialise identically");
+        assert_eq!(
+            a.weights, b.weights,
+            "same arch must initialise identically"
+        );
     }
 
     #[test]
@@ -730,7 +760,10 @@ mod tests {
         let target = [1.0, 0.0];
         let loss1 = mlp.train(&input, &target, 0.1);
         let loss2 = mlp.train(&input, &target, 0.1);
-        assert!(loss2 <= loss1 * 1.05, "loss should decrease: {loss1} -> {loss2}");
+        assert!(
+            loss2 <= loss1 * 1.05,
+            "loss should decrease: {loss1} -> {loss2}"
+        );
     }
 
     #[test]
@@ -741,7 +774,10 @@ mod tests {
         for _ in 0..200 {
             last = mlp.train(&input, &target, 0.2);
         }
-        assert!(last < 0.2, "model should fit the pattern, final loss {last}");
+        assert!(
+            last < 0.2,
+            "model should fit the pattern, final loss {last}"
+        );
         assert_eq!(argmax(&mlp.forward(&input)), 1);
     }
 
@@ -787,7 +823,10 @@ mod tests {
     fn training_survives_extreme_inputs_without_nan() {
         let mut model = MeMLP::new();
         for _ in 0..50 {
-            model.train_observation(&[1e6, -1e6, 1e5, -1e5, 1e4, -1e4, 1e3, -1e3, 1.0, 0.0], 0.05);
+            model.train_observation(
+                &[1e6, -1e6, 1e5, -1e5, 1e4, -1e4, 1e3, -1e3, 1.0, 0.0],
+                0.05,
+            );
         }
         model.sanitize();
         let json = serde_json::to_string(&model).unwrap();
@@ -833,7 +872,10 @@ mod tests {
         }
         let f = pf.features();
         assert_eq!(f.len(), 10);
-        assert!(f.iter().all(|v| (0.0..=1.0).contains(v)), "features out of range: {f:?}");
+        assert!(
+            f.iter().all(|v| (0.0..=1.0).contains(v)),
+            "features out of range: {f:?}"
+        );
     }
 
     #[test]
@@ -844,10 +886,18 @@ mod tests {
         }
         pf.observe_open("/etc/systemd/system/evil.service", Some("service"), 0.4);
         let f = pf.features();
-        assert!(f[3] > 0.5, "ransomware-marker fraction should dominate: {}", f[3]);
+        assert!(
+            f[3] > 0.5,
+            "ransomware-marker fraction should dominate: {}",
+            f[3]
+        );
         assert!(f[2] > 0.5, "high-entropy filenames expected: {}", f[2]);
         assert!(f[8] > 0.0, "persistence path should register: {}", f[8]);
-        assert_eq!(ransomware_heuristic_target(&f), 2, "should be flagged ransomware");
+        assert_eq!(
+            ransomware_heuristic_target(&f),
+            2,
+            "should be flagged ransomware"
+        );
     }
 
     #[test]
@@ -857,7 +907,11 @@ mod tests {
             pf.observe_open(&format!("/home/u/notes/note{i}.txt"), Some("txt"), 0.2);
         }
         let f = pf.features();
-        assert_eq!(ransomware_heuristic_target(&f), 0, "quiet process must stay benign");
+        assert_eq!(
+            ransomware_heuristic_target(&f),
+            0,
+            "quiet process must stay benign"
+        );
         assert_eq!(persistence_heuristic_target(&f), 0);
         assert_eq!(lateral_heuristic_target(&f), 0);
     }
@@ -869,7 +923,11 @@ mod tests {
             pf.observe_open(&format!("/tmp/f{i}.log"), Some("log"), 0.1);
         }
         pf.decay();
-        assert!((pf.opens - 5.0).abs() < 1e-9, "decay must halve opens: {}", pf.opens);
+        assert!(
+            (pf.opens - 5.0).abs() < 1e-9,
+            "decay must halve opens: {}",
+            pf.opens
+        );
     }
 
     #[test]
@@ -906,9 +964,20 @@ mod tests {
     #[test]
     fn param_count_matches_architectures() {
         let model = MeMLP::new();
-        let expected = 10 * 24 + 24 + 24 * 16 + 16 + 16 * 3 + 3
-            + 10 * 12 + 12 + 12 * 2 + 2
-            + 10 * 12 + 12 + 12 * 2 + 2;
+        let expected = 10 * 24
+            + 24
+            + 24 * 16
+            + 16
+            + 16 * 3
+            + 3
+            + 10 * 12
+            + 12
+            + 12 * 2
+            + 2
+            + 10 * 12
+            + 12
+            + 12 * 2
+            + 2;
         assert_eq!(model.param_count(), expected);
     }
 }

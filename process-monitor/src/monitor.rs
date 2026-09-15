@@ -31,7 +31,6 @@ const WINDOW_SECS: u64 = 1;
 /// Learning rate for MeMLP online training (conservative — one step per alert).
 const MEMLP_LEARNING_RATE: f32 = 0.03;
 
-
 // ── eBPF event record (must match kernel-side #[repr(C)]) ────────────────
 
 #[repr(C)]
@@ -293,17 +292,17 @@ impl Monitor {
             if let Some(prog) = bpf.program_mut(name) {
                 let tp: Result<&mut TracePoint, _> = prog.try_into();
                 match tp {
-                    Ok(tp) => {
-                        match tp.load() {
-                            Ok(()) => {
-                                match tp.attach("syscalls", name) {
-                                    Ok(_) => eprintln!("[talus] attached tracepoint syscalls/{name} ({label})"),
-                                    Err(e) => eprintln!("[talus] WARN: loaded {name} but attach failed: {e}"),
-                                }
+                    Ok(tp) => match tp.load() {
+                        Ok(()) => match tp.attach("syscalls", name) {
+                            Ok(_) => {
+                                eprintln!("[talus] attached tracepoint syscalls/{name} ({label})")
                             }
-                            Err(e) => eprintln!("[talus] WARN: failed to load {name}: {e}"),
-                        }
-                    }
+                            Err(e) => {
+                                eprintln!("[talus] WARN: loaded {name} but attach failed: {e}")
+                            }
+                        },
+                        Err(e) => eprintln!("[talus] WARN: failed to load {name}: {e}"),
+                    },
                     Err(e) => eprintln!("[talus] WARN: {name} is not a TracePoint: {e}"),
                 }
             } else {
@@ -445,10 +444,16 @@ impl Monitor {
         if self.memlp.is_some() {
             match ev.kind {
                 Kind::Exec => {
-                    self.pid_features.entry(ev.pid).or_default().observe_exec(false);
+                    self.pid_features
+                        .entry(ev.pid)
+                        .or_default()
+                        .observe_exec(false);
                 }
                 Kind::Connect | Kind::Accept | Kind::SendTo | Kind::RecvFrom => {
-                    self.pid_features.entry(ev.pid).or_default().observe_exec(true);
+                    self.pid_features
+                        .entry(ev.pid)
+                        .or_default()
+                        .observe_exec(true);
                 }
                 Kind::Open => {
                     let entropy = ev.file.as_deref().map(shannon_entropy).unwrap_or(0.0);
@@ -459,10 +464,16 @@ impl Monitor {
                     );
                 }
                 Kind::Mkdir => {
-                    self.pid_features.entry(ev.pid).or_default().observe_fs(false);
+                    self.pid_features
+                        .entry(ev.pid)
+                        .or_default()
+                        .observe_fs(false);
                 }
                 Kind::Unlink | Kind::Chmod => {
-                    self.pid_features.entry(ev.pid).or_default().observe_fs(true);
+                    self.pid_features
+                        .entry(ev.pid)
+                        .or_default()
+                        .observe_fs(true);
                 }
                 Kind::Kill => {}
             }
@@ -815,7 +826,7 @@ fn spawn_reader(
                                         // Contiguous: no wrapping
                                         let evt = unsafe {
                                             std::ptr::read_unaligned(
-                                                head.as_ptr() as *const ProcessEvent,
+                                                head.as_ptr() as *const ProcessEvent
                                             )
                                         };
                                         let _ = tx.send(Msg::Event(to_recorded(&evt)));
@@ -826,7 +837,7 @@ fn spawn_reader(
                                         buf[head.len()..].copy_from_slice(tail);
                                         let evt = unsafe {
                                             std::ptr::read_unaligned(
-                                                buf.as_ptr() as *const ProcessEvent,
+                                                buf.as_ptr() as *const ProcessEvent
                                             )
                                         };
                                         let _ = tx.send(Msg::Event(to_recorded(&evt)));
@@ -1355,7 +1366,10 @@ mod tests {
         // Single char extension
         assert_eq!(extract_extension("x.c"), "c");
         // Very long extension
-        assert_eq!(extract_extension("file.abcdefghijklmnopqrstuvwxyz"), "abcdefghijklmnopqrstuvwxyz");
+        assert_eq!(
+            extract_extension("file.abcdefghijklmnopqrstuvwxyz"),
+            "abcdefghijklmnopqrstuvwxyz"
+        );
         // Dot at start (dotfile)
         assert_eq!(extract_extension(".gitignore"), "");
         // No path, just filename
@@ -1488,7 +1502,10 @@ mod tests {
         for _ in 0..100 {
             monitor.handle_event(&open(1, 0, "/x"), &mut outputs);
         }
-        let alerts = outputs.iter().filter(|o| matches!(o, Output::Alert(_))).count();
+        let alerts = outputs
+            .iter()
+            .filter(|o| matches!(o, Output::Alert(_)))
+            .count();
         assert_eq!(alerts, 0, "threshold=0 should produce no alerts");
     }
 
@@ -1501,7 +1518,10 @@ mod tests {
         for _ in 0..3 {
             monitor.handle_event(&open(99, 1000, "/tmp/evil"), &mut outputs);
         }
-        let actions: Vec<_> = outputs.iter().filter(|o| matches!(o, Output::Action(_))).collect();
+        let actions: Vec<_> = outputs
+            .iter()
+            .filter(|o| matches!(o, Output::Action(_)))
+            .collect();
         assert_eq!(actions.len(), 1, "auto-kill should emit one ResponseAction");
         if let Output::Action(act) = &outputs[3] {
             assert!(act.action.contains("SIGKILL"));

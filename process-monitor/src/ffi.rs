@@ -514,18 +514,24 @@ pub unsafe extern "C" fn talus_license_allows(feature: *const c_char) -> c_int {
     if feature.is_null() {
         return 0;
     }
-    let feature_str = unsafe { CStr::from_ptr(feature) }
-        .to_str()
-        .unwrap_or("");
+    let feature_str = unsafe { CStr::from_ptr(feature) }.to_str().unwrap_or("");
     let state = crate::license::init_license();
-    if state.allows(feature_str) { 1 } else { 0 }
+    if state.allows(feature_str) {
+        1
+    } else {
+        0
+    }
 }
 
 /// Returns 1 if a valid enterprise license is active, 0 otherwise.
 #[unsafe(no_mangle)]
 pub extern "C" fn talus_license_is_enterprise() -> c_int {
     let state = crate::license::init_license();
-    if state.allows("auto_kill") { 1 } else { 0 }
+    if state.allows("auto_kill") {
+        1
+    } else {
+        0
+    }
 }
 
 /// Returns the license status as a JSON C string.

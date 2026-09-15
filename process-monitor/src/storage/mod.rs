@@ -19,7 +19,7 @@ pub mod clickhouse;
 #[cfg(feature = "memgraph")]
 pub mod memgraph;
 
-use crate::monitor::{RecordedEvent, Alert};
+use crate::monitor::{Alert, RecordedEvent};
 
 /// Unified event type for storage backends.
 #[derive(Debug, Clone, serde::Serialize)]

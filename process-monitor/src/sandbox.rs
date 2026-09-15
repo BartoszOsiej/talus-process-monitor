@@ -103,8 +103,8 @@ fn get_current_capabilities() -> Result<HashSet<u32>> {
     let mut caps = HashSet::new();
 
     // Read from /proc/self/status
-    let status = std::fs::read_to_string("/proc/self/status")
-        .context("failed to read /proc/self/status")?;
+    let status =
+        std::fs::read_to_string("/proc/self/status").context("failed to read /proc/self/status")?;
 
     for line in status.lines() {
         if let Some(rest) = line.strip_prefix("CapBnd:\t") {
@@ -388,7 +388,7 @@ fn build_seccomp_filter() -> Vec<SockFilter> {
 
         if i < prog.len() {
             prog[i].jt = jump_to_allow; // true → allow
-            prog[i].jf = 1;             // false → next comparison
+            prog[i].jf = 1; // false → next comparison
             i += 1;
         }
     }
@@ -418,7 +418,15 @@ pub fn install_seccomp_filter() -> Result<()> {
         filter: filter.as_ptr(),
     };
 
-    let ret = unsafe { libc::prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &fprog as *const _ as usize, 0, 0) };
+    let ret = unsafe {
+        libc::prctl(
+            PR_SET_SECCOMP,
+            SECCOMP_MODE_FILTER,
+            &fprog as *const _ as usize,
+            0,
+            0,
+        )
+    };
 
     if ret != 0 {
         let err = std::io::Error::last_os_error();
@@ -585,13 +593,7 @@ pub fn apply_landlock(bpf_path: &Path) -> Result<()> {
     }
 
     // Enforce the ruleset on current process
-    let ret = unsafe {
-        libc::syscall(
-            LANDLOCK_RESTRICT_SELF,
-            ruleset_fd as usize,
-            0u32,
-        )
-    };
+    let ret = unsafe { libc::syscall(LANDLOCK_RESTRICT_SELF, ruleset_fd as usize, 0u32) };
 
     if ret < 0 {
         eprintln!(
@@ -647,7 +649,10 @@ fn get_landlock_abi_version() -> u32 {
 /// Open a directory read-only for Landlock rules.
 fn open_ro_fd(path: &CString) -> Result<i32> {
     let fd = unsafe {
-        libc::open(path.as_ptr(), libc::O_RDONLY | libc::O_CLOEXEC | libc::O_DIRECTORY)
+        libc::open(
+            path.as_ptr(),
+            libc::O_RDONLY | libc::O_CLOEXEC | libc::O_DIRECTORY,
+        )
     };
 
     if fd < 0 {
@@ -735,10 +740,19 @@ mod tests {
 
         // BLOCKED after init — prevents self-modification
         assert!(!allowed.contains(&321), "bpf must be BLOCKED after init");
-        assert!(!allowed.contains(&241), "perf_event_open must be BLOCKED after init");
+        assert!(
+            !allowed.contains(&241),
+            "perf_event_open must be BLOCKED after init"
+        );
         assert!(!allowed.contains(&101), "ptrace must be BLOCKED always");
-        assert!(!allowed.contains(&59),  "execve must be BLOCKED (no exec after init)");
-        assert!(!allowed.contains(&57),  "fork must be BLOCKED (no fork after init)");
+        assert!(
+            !allowed.contains(&59),
+            "execve must be BLOCKED (no exec after init)"
+        );
+        assert!(
+            !allowed.contains(&57),
+            "fork must be BLOCKED (no fork after init)"
+        );
     }
 
     #[test]

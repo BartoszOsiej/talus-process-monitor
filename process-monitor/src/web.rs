@@ -32,7 +32,10 @@ use crate::monitor::{Kind, Monitor, Output};
 /// Generate a random API token (32 hex chars).
 fn generate_api_token() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
-    let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos();
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
     let pid = std::process::id();
     format!("{:016x}{:08x}", ts, pid)
 }
@@ -52,7 +55,10 @@ fn load_or_create_token() -> String {
         let token = generate_api_token();
         let _ = std::fs::create_dir_all(config_dir.join("talus"));
         let _ = std::fs::write(&token_path, &token);
-        let _ = std::fs::set_permissions(&token_path, std::os::unix::fs::PermissionsExt::from_mode(0o600));
+        let _ = std::fs::set_permissions(
+            &token_path,
+            std::os::unix::fs::PermissionsExt::from_mode(0o600),
+        );
         return token;
     }
     generate_api_token()
@@ -60,7 +66,9 @@ fn load_or_create_token() -> String {
 
 /// Check if auth is enabled (env var TALUS_WEB_AUTH=1).
 fn auth_enabled() -> bool {
-    std::env::var("TALUS_WEB_AUTH").map(|v| v == "1" || v == "true").unwrap_or(false)
+    std::env::var("TALUS_WEB_AUTH")
+        .map(|v| v == "1" || v == "true")
+        .unwrap_or(false)
 }
 
 /// Check if the request has a valid API token.
@@ -124,8 +132,7 @@ struct ApiToken(String);
 fn with_auth_state(router: Router<AppState>, state: &AppState) -> Router<AppState> {
     let token = ApiToken(state.api_token.clone());
     router.layer(axum::middleware::from_fn(
-        move |mut req: axum::http::Request<axum::body::Body>,
-              next: axum::middleware::Next| {
+        move |mut req: axum::http::Request<axum::body::Body>, next: axum::middleware::Next| {
             let token = token.clone();
             async move {
                 req.extensions_mut().insert(token);
@@ -415,7 +422,11 @@ async fn get_license_health() -> Json<license::LicenseHealth> {
 /// GET /api/v1/auth — show auth info
 async fn get_auth_info(State(state): State<AppState>) -> Json<ApiResponse<AuthInfoResponse>> {
     let preview = if state.api_token.len() > 8 {
-        format!("{}...{}", &state.api_token[..4], &state.api_token[state.api_token.len()-4..])
+        format!(
+            "{}...{}",
+            &state.api_token[..4],
+            &state.api_token[state.api_token.len() - 4..]
+        )
     } else {
         "****".into()
     };
@@ -429,10 +440,7 @@ async fn get_auth_info(State(state): State<AppState>) -> Json<ApiResponse<AuthIn
     })
 }
 
-async fn metrics_handler(
-    State(state): State<AppState>,
-    _auth: Authed,
-) -> impl IntoResponse {
+async fn metrics_handler(State(state): State<AppState>, _auth: Authed) -> impl IntoResponse {
     let registry = state.metrics.lock().await;
     let mut buffer = String::new();
     encode(&mut buffer, &registry).unwrap();
@@ -626,7 +634,9 @@ where
 {
     type Response = Response<axum::body::Body>;
     type Error = S::Error;
-    type Future = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>>;
+    type Future = std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<Self::Response, Self::Error>> + Send>,
+    >;
 
     fn poll_ready(
         &mut self,
@@ -719,15 +729,20 @@ pub async fn start_web_server(
         .route("/metrics", get(metrics_handler));
 
     // Write routes (require auth)
-    let write_routes = Router::new()
-        .route("/api/v1/threshold", post(set_threshold));
+    let write_routes = Router::new().route("/api/v1/threshold", post(set_threshold));
 
     let app = with_auth_state(read_routes.merge(write_routes), &state)
         .with_state(state)
-        .layer(tower_http::cors::CorsLayer::new()
-            .allow_origin("https://localhost".parse::<HeaderValue>().unwrap())
-            .allow_methods([Method::GET, Method::POST])
-            .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE, header::HeaderName::from_static("x-api-token")]))
+        .layer(
+            tower_http::cors::CorsLayer::new()
+                .allow_origin("https://localhost".parse::<HeaderValue>().unwrap())
+                .allow_methods([Method::GET, Method::POST])
+                .allow_headers([
+                    header::AUTHORIZATION,
+                    header::CONTENT_TYPE,
+                    header::HeaderName::from_static("x-api-token"),
+                ]),
+        )
         .layer(SecurityHeadersLayer);
 
     // Print startup info
@@ -738,7 +753,10 @@ pub async fn start_web_server(
     eprintln!("  \x1b[36m║\x1b[0m  URL:      https://{addr}                     \x1b[36m║\x1b[0m");
     eprintln!("  \x1b[36m║\x1b[0m  TLS:      self-signed certificate             \x1b[36m║\x1b[0m");
     eprintln!("  \x1b[36m║\x1b[0m  Auth:     Bearer token required for POST      \x1b[36m║\x1b[0m");
-    eprintln!("  \x1b[36m║\x1b[0m  Token:    {}...\x1b[36m║\x1b[0m", &api_token[..8.min(api_token.len())]);
+    eprintln!(
+        "  \x1b[36m║\x1b[0m  Token:    {}...\x1b[36m║\x1b[0m",
+        &api_token[..8.min(api_token.len())]
+    );
     eprintln!("  \x1b[36m║\x1b[0m  WebSocket: wss://{addr}/ws                  \x1b[36m║\x1b[0m");
     eprintln!("  \x1b[36m║\x1b[0m  Metrics:   https://{addr}/metrics           \x1b[36m║\x1b[0m");
     eprintln!("  \x1b[36m╚══════════════════════════════════════════════════╝\x1b[0m");
@@ -775,9 +793,8 @@ pub async fn start_web_server(
             // per-connection serving also keeps one bad client from touching
             // the accept loop.
             let hyper_service = hyper_util::service::TowerToHyperService::new(app);
-            let builder = hyper_util::server::conn::auto::Builder::new(
-                hyper_util::rt::TokioExecutor::new(),
-            );
+            let builder =
+                hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new());
             let conn = builder.serve_connection_with_upgrades(
                 hyper_util::rt::TokioIo::new(tls_stream),
                 hyper_service,

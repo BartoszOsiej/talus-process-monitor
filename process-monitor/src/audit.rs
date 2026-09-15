@@ -95,9 +95,7 @@ pub fn audit_log(event: &str, license_id: &str, detail: &str) {
         })
         .unwrap_or_else(|| "0".to_string());
 
-    let ts = chrono::Utc::now()
-        .format("%Y-%m-%dT%H:%M:%SZ")
-        .to_string();
+    let ts = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let hostname = hostname::get()
         .map(|h| h.to_string_lossy().into_owned())
         .unwrap_or_else(|_| "unknown".into());
@@ -299,7 +297,10 @@ mod tests {
         let mut tampered = entry2.clone();
         tampered.detail = "TAMPERED".into();
         let h2_tampered = tampered.compute_hash(&h1);
-        assert_ne!(h2_tampered, h2, "tampered entry must produce different hash");
+        assert_ne!(
+            h2_tampered, h2,
+            "tampered entry must produce different hash"
+        );
 
         // Chain break: entry3.prev_hash no longer matches
         assert_ne!(entry3.prev_hash, h2_tampered);
