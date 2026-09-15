@@ -14,8 +14,7 @@ use std::thread;
 use std::time::Duration;
 
 use rdkafka::config::ClientConfig;
-use rdkafka::producer::{BaseProducer, BaseRecord, Producer};
-use rdkafka::util::Timeout;
+use rdkafka::producer::{BaseProducer, BaseRecord};
 
 use super::StorageEvent;
 
@@ -54,8 +53,8 @@ impl KafkaProducer {
         kafka_config
             .set("bootstrap.servers", &config.brokers)
             .set("compression.type", &config.compression)
-            .set("batch.size", &config.batch_size.to_string())
-            .set("linger.ms", &config.linger_ms.to_string())
+            .set("batch.size", config.batch_size.to_string())
+            .set("linger.ms", config.linger_ms.to_string())
             .set("queue.buffering.max.messages", "100000")
             .set("message.send.max.retries", "3")
             .set("retry.backoff.ms", "100");
@@ -111,6 +110,9 @@ impl KafkaProducer {
 }
 
 /// Batch send multiple events.
+/// Batch-send events (public API for external pipelines; the producer
+/// normally batches internally).
+#[allow(dead_code)]
 pub fn send_batch(producer: &KafkaProducer, events: &[StorageEvent]) {
     for event in events {
         producer.send(event.clone());

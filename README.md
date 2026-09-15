@@ -267,6 +267,39 @@ if self.auto_kill {
 
 This is extensible — the `ResponseAction` interface supports `kill`, cgroup freeze, network quarantine, or any custom response.
 
+### Detection: MeMLP neural engine (`--memlp`)
+
+Beyond the heuristic window, Talus embeds **MeMLP** — a **M**odular **e**mbedded **M**ulti-**L**ayer **P**erceptron model built from scratch (no `ndarray`, no `tch`, no ONNX — just a few KB of dependency-free Rust). The same architecture powers the neural terrain generator in the NV2 voxel engine, re-targeted here at process behaviour.
+
+| Module | Shape | Task |
+|---|---|---|
+| `ransomware` | 10 → 24 → 16 → 3 | benign / suspicious / ransomware |
+| `lateral` | 10 → 12 → 2 | lateral-movement suspect |
+| `persistence` | 10 → 12 → 2 | autostart-persistence suspect |
+
+Every module consumes the same **10-feature behavioural embedding** per PID (open rate, exec+network rate, filename Shannon entropy, ransomware-marker extension fraction, extension diversity, fs-mutation rate, destructive fraction, distinct-file spread, autostart-path hits, network fraction). Windows decay with a 1-second half-life, mirroring the heuristic window.
+
+The engine **trains online**: every alert performs a backpropagation step (cross-entropy loss, gradient clipping, bounded updates) against transparent heuristic teachers, then scores the process. Checkpoints persist as JSON and reload on the next run, so the model keeps learning across restarts.
+
+```bash
+# Enable the neural engine (checkpoint auto-saves every 30s)
+sudo process-monitor --memlp
+
+# Explicit checkpoint location (loaded on start, saved on shutdown + autosave)
+sudo process-monitor --memlp --memlp-checkpoint /var/lib/talus/memlp.json
+```
+
+Alerts carry the neural verdict in every output channel:
+
+```
+12:00:03 SUSPICIOUS [4132] encrypt.sh opened 50 files in 1s!  [MeMLP R:ransomware 91% L:normal 99% P:suspect 74%]
+```
+
+```json
+{"type":"alert","pid":4132,"comm":"encrypt.sh","opens_in_1s":50,
+ "memlp":{"ransomware":{"module":"ransomware","class":2,"label":"ransomware","confidence":0.91}, ...}}
+```
+
 ---
 
 ## Requirements
@@ -324,6 +357,10 @@ sudo process-monitor --plain
 # Web dashboard (requires --features web build)
 sudo process-monitor --web 0.0.0.0:8080
 
+# MeMLP neural detection engine (online training + JSON checkpoints)
+sudo process-monitor --memlp
+sudo process-monitor --memlp --memlp-checkpoint /var/lib/talus/memlp.json
+
 # Self-diagnostic
 sudo process-monitor --diagnose
 ```
@@ -339,6 +376,8 @@ sudo process-monitor --diagnose
 | `--top-files <N>` | `8` | Top files in TUI |
 | `--json` | off | Newline-delimited JSON output |
 | `--plain` | off | Plain text log |
+| `--memlp` | off | Enable the MeMLP neural detection engine |
+| `--memlp-checkpoint <PATH>` | `~/.local/share/talus/memlp.json` | MeMLP checkpoint (load on start, autosave every 30s) |
 | `--diagnose` | off | 5-second self-diagnostic |
 | `--web <ADDR>` | off | Start web server (requires `--features web`) |
 

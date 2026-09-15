@@ -11,8 +11,8 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{State, WebSocketUpgrade};
-use axum::http::{header, HeaderValue, Method, Request, Response};
+use axum::extract::{FromRequestParts, State, WebSocketUpgrade};
+use axum::http::{header, request::Parts, HeaderValue, Method, Request, Response};
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -64,12 +64,12 @@ fn auth_enabled() -> bool {
 }
 
 /// Check if the request has a valid API token.
-fn auth_valid(req: &axum::http::Request<axum::body::Body>, token: &str) -> bool {
+fn auth_valid(parts: &Parts, token: &str) -> bool {
     if !auth_enabled() {
         return true; // Auth disabled = all requests allowed
     }
     // Check Authorization header
-    if let Some(auth) = req.headers().get("authorization") {
+    if let Some(auth) = parts.headers.get("authorization") {
         if let Ok(auth_str) = auth.to_str() {
             if auth_str == format!("Bearer {token}") {
                 return true;
@@ -77,7 +77,7 @@ fn auth_valid(req: &axum::http::Request<axum::body::Body>, token: &str) -> bool 
         }
     }
     // Check X-API-Token header
-    if let Some(api_token) = req.headers().get("x-api-token") {
+    if let Some(api_token) = parts.headers.get("x-api-token") {
         if let Ok(t) = api_token.to_str() {
             if t == token {
                 return true;
@@ -85,6 +85,54 @@ fn auth_valid(req: &axum::http::Request<axum::body::Body>, token: &str) -> bool 
         }
     }
     false
+}
+
+/// Axum extractor that validates the API token (or short-circuits to 401).
+///
+/// `FromRequestParts` (not `FromRequest`) so it never consumes the body —
+/// handlers can combine it freely with a `Json` body extractor.
+struct Authed;
+
+impl<S: Send + Sync> FromRequestParts<S> for Authed {
+    type Rejection = (axum::http::StatusCode, &'static str);
+
+    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+        // The token lives in AppState; handlers pass it via an extension set
+        // below (see `with_auth_state`), keeping this extractor stateless.
+        let token = parts
+            .extensions
+            .get::<ApiToken>()
+            .map(|t| t.0.clone())
+            .unwrap_or_default();
+        if auth_valid(parts, &token) {
+            Ok(Authed)
+        } else {
+            Err((
+                axum::http::StatusCode::UNAUTHORIZED,
+                "unauthorized: provide Authorization: Bearer <token> or X-API-Token header",
+            ))
+        }
+    }
+}
+
+/// Newtype so the API token can ride in request extensions.
+#[derive(Clone)]
+struct ApiToken(String);
+
+/// Route through this layer before `.with_state()` so every request carries
+/// the API token in its extensions for the `Authed` extractor.
+fn with_auth_state(router: Router<AppState>, state: &AppState) -> Router<AppState> {
+    let token = ApiToken(state.api_token.clone());
+    router.layer(axum::middleware::from_fn(
+        move |mut req: axum::http::Request<axum::body::Body>,
+              next: axum::middleware::Next| {
+            let token = token.clone();
+            async move {
+                req.extensions_mut().insert(token);
+                next.run(req).await
+            }
+        },
+    ))
 }
 
 // ── Shared state ──────────────────────────────────────────────────────────
@@ -182,6 +230,8 @@ enum WsEvent {
         uid: u32,
         comm: String,
         opens: u64,
+        /// MeMLP neural verdicts (null when the engine is disabled).
+        memlp: Option<crate::memlp::Assessment>,
     },
 }
 
@@ -201,6 +251,8 @@ struct StatsResponse {
     uptime_secs: u64,
     active_pids: usize,
     threshold: u64,
+    /// MeMLP neural engine summary (null when disabled).
+    memlp: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -211,6 +263,8 @@ struct ProcessInfo {
     total_opens: u64,
     total_execs: u64,
     alerts: u64,
+    /// Latest MeMLP neural verdicts for this PID (null when disabled or no data).
+    memlp: Option<crate::memlp::Assessment>,
 }
 
 #[derive(Serialize)]
@@ -242,11 +296,8 @@ struct AuthInfoResponse {
 
 async fn get_stats(
     State(state): State<AppState>,
-    req: axum::http::Request<axum::body::Body>,
+    _auth: Authed,
 ) -> Json<ApiResponse<StatsResponse>> {
-    if !auth_valid(&req, &state.api_token) {
-        return Json(ApiResponse { ok: false, data: None, error: Some("unauthorized".into()) });
-    }
     let mon = state.monitor.lock().await;
     let pids = mon.stats_sorted().len();
     Json(ApiResponse {
@@ -257,6 +308,7 @@ async fn get_stats(
             uptime_secs: mon.uptime().as_secs(),
             active_pids: pids,
             threshold: mon.threshold,
+            memlp: mon.memlp_summary(),
         }),
         error: None,
     })
@@ -264,11 +316,8 @@ async fn get_stats(
 
 async fn get_processes(
     State(state): State<AppState>,
-    req: axum::http::Request<axum::body::Body>,
+    _auth: Authed,
 ) -> Json<ApiResponse<Vec<ProcessInfo>>> {
-    if !auth_valid(&req, &state.api_token) {
-        return Json(ApiResponse { ok: false, data: None, error: Some("unauthorized".into()) });
-    }
     let mon = state.monitor.lock().await;
     let processes: Vec<ProcessInfo> = mon
         .stats_sorted()
@@ -280,6 +329,7 @@ async fn get_processes(
             total_opens: s.total_opens,
             total_execs: s.total_execs,
             alerts: s.alerts,
+            memlp: mon.memlp_verdict(s.pid),
         })
         .collect();
     Json(ApiResponse {
@@ -291,11 +341,8 @@ async fn get_processes(
 
 async fn get_files(
     State(state): State<AppState>,
-    req: axum::http::Request<axum::body::Body>,
+    _auth: Authed,
 ) -> Json<ApiResponse<Vec<FileRankResponse>>> {
-    if !auth_valid(&req, &state.api_token) {
-        return Json(ApiResponse { ok: false, data: None, error: Some("unauthorized".into()) });
-    }
     let mon = state.monitor.lock().await;
     let files: Vec<FileRankResponse> = mon
         .top_files(50)
@@ -316,11 +363,8 @@ async fn get_files(
 
 async fn get_extensions(
     State(state): State<AppState>,
-    req: axum::http::Request<axum::body::Body>,
+    _auth: Authed,
 ) -> Json<ApiResponse<Vec<ExtensionResponse>>> {
-    if !auth_valid(&req, &state.api_token) {
-        return Json(ApiResponse { ok: false, data: None, error: Some("unauthorized".into()) });
-    }
     let mon = state.monitor.lock().await;
     let mut exts: Vec<ExtensionResponse> = mon
         .extension_counts()
@@ -341,18 +385,9 @@ async fn get_extensions(
 /// POST /api/v1/threshold — requires auth
 async fn set_threshold(
     State(state): State<AppState>,
-    req: axum::http::Request<axum::body::Body>,
+    _auth: Authed,
     Json(body): Json<ThresholdQuery>,
 ) -> Json<ApiResponse<StatsResponse>> {
-    // Check auth
-    if !auth_valid(&req, &state.api_token) {
-        return Json(ApiResponse {
-            ok: false,
-            data: None,
-            error: Some("unauthorized: provide Authorization: Bearer <token> or X-API-Token header".into()),
-        });
-    }
-
     let mut mon = state.monitor.lock().await;
     if let Some(t) = body.threshold {
         mon.threshold = t;
@@ -366,6 +401,7 @@ async fn set_threshold(
             uptime_secs: mon.uptime().as_secs(),
             active_pids: pids,
             threshold: mon.threshold,
+            memlp: mon.memlp_summary(),
         }),
         error: None,
     })
@@ -395,11 +431,8 @@ async fn get_auth_info(State(state): State<AppState>) -> Json<ApiResponse<AuthIn
 
 async fn metrics_handler(
     State(state): State<AppState>,
-    req: axum::http::Request<axum::body::Body>,
+    _auth: Authed,
 ) -> impl IntoResponse {
-    if !auth_valid(&req, &state.api_token) {
-        return ([(axum::http::header::CONTENT_TYPE, "text/plain")], "unauthorized".to_string());
-    }
     let registry = state.metrics.lock().await;
     let mut buffer = String::new();
     encode(&mut buffer, &registry).unwrap();
@@ -485,6 +518,7 @@ fn spawn_event_forwarder(state: AppState) {
                                 uid: al.uid,
                                 comm: al.comm.trim_end_matches('\0').to_string(),
                                 opens: al.opens,
+                                memlp: al.memlp,
                             });
                         }
                         Output::Action(_) => {}
@@ -652,7 +686,7 @@ fn generate_self_signed_cert() -> Result<(rustls::ServerConfig, String), anyhow:
     let server_config = rustls::ServerConfig::builder()
         .with_no_client_auth()
         .with_single_cert(
-            vec![cert_der.into()],
+            vec![cert_der],
             rustls::pki_types::PrivateKeyDer::Pkcs8(key_der),
         )?;
 
@@ -688,8 +722,7 @@ pub async fn start_web_server(
     let write_routes = Router::new()
         .route("/api/v1/threshold", post(set_threshold));
 
-    let app = read_routes
-        .merge(write_routes)
+    let app = with_auth_state(read_routes.merge(write_routes), &state)
         .with_state(state)
         .layer(tower_http::cors::CorsLayer::new()
             .allow_origin("https://localhost".parse::<HeaderValue>().unwrap())
@@ -737,12 +770,19 @@ pub async fn start_web_server(
                 }
             };
 
-            if let Err(e) = axum::serve(
-                tokio::net::TcpListener::from_std(
-                    std::net::TcpListener::from(std::net::TcpStream::from(tls_stream.into_inner()))
-                ).unwrap(),
-                app,
-            ).await {
+            // Serve the TLS stream with hyper-util directly. `axum::serve`
+            // owns its listener, so it cannot accept pre-wrapped TLS streams;
+            // per-connection serving also keeps one bad client from touching
+            // the accept loop.
+            let hyper_service = hyper_util::service::TowerToHyperService::new(app);
+            let builder = hyper_util::server::conn::auto::Builder::new(
+                hyper_util::rt::TokioExecutor::new(),
+            );
+            let conn = builder.serve_connection_with_upgrades(
+                hyper_util::rt::TokioIo::new(tls_stream),
+                hyper_service,
+            );
+            if let Err(e) = conn.await {
                 eprintln!("[talus] serve error: {e}");
             }
         });

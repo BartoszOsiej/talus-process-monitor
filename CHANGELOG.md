@@ -2,6 +2,42 @@
 
 All notable changes to talus-process-monitor will be documented in this file.
 
+## [Unreleased]
+
+### MeMLP — Neural Detection Engine (built from scratch) ✅
+
+- New `memlp.rs`: modular embedded multi-layer perceptron stack — no ML
+  dependencies, flat `Vec<f32>` storage, seeded deterministic init, ReLU/softmax
+  forward pass, online backprop training (cross-entropy loss, gradient
+  clipping, bounded per-parameter updates, NaN/Inf sanitisation)
+- Three specialist heads on one shared 10-feature behavioural embedding:
+  `ransomware` (10→24→16→3), `lateral` (10→12→2), `persistence` (10→12→2)
+- Per-PID feature accumulator with 1-second half-life decay fed by the live
+  eBPF event stream (opens, execs, network, fs mutations, filename entropy,
+  ransomware-marker extensions, autostart paths)
+- Online training on every alert against transparent heuristic teachers;
+  neural verdicts attached to alerts in TUI, JSON, plain and WebSocket output
+- JSON checkpoints: `--memlp` enables the engine, `--memlp-checkpoint PATH`
+  sets the file (default `~/.local/share/talus/memlp.json`); autosave every
+  30 s, reload on start, `training_samples` persists across restarts
+- 21 unit tests (forward/training/checkpoint/feature tests)
+- REST API: `GET /api/v1/stats` and `GET /api/v1/processes` now expose MeMLP
+  state and per-PID verdicts
+
+### Fixed
+
+- `--features web`: axum 0.8 handler mismatch — auth checks moved from a
+  body-consuming `Request` extractor to a stateless `Authed`
+  (`FromRequestParts`) extractor; the TLS accept loop now serves each
+  pre-wrapped TLS stream via `hyper-util`'s auto builder instead of the
+  impossible `TcpStream → TcpListener` conversion (WebSockets preserved via
+  `serve_connection_with_upgrades`)
+- `--features clickhouse` / `--features memgraph`: `ClickHouseConfig` /
+  `MemGraphConfig` now derive `Clone`; `MemGraphStore::cypher` returns
+  `Result<(), String>` correctly
+- `--features kafka`: removed unused imports; workspace compiles with
+  **zero errors and zero warnings** on `--all-features` (previously 8 errors)
+
 ## [0.7.0] - 2026-08-30
 
 ### Enterprise Licensing System

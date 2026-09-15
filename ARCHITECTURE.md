@@ -235,6 +235,34 @@ Design decisions:
 - **Fixed 1 s window** keeps memory bounded: each tracked PID holds at most a
   handful of `Instant`s, and eviction is amortized O(1).
 
+### 4.1 MeMLP — neural detection engine (optional, `--memlp`)
+
+Layered on top of the heuristic (never replacing it), Talus can run **MeMLP**:
+a modular embedded multi-layer perceptron stack in `memlp.rs`, built from
+scratch on flat `Vec<f32>` storage — no `ndarray`, no `tch`, no external
+runtime. One JSON checkpoint holds three specialist heads:
+
+| Module | Shape | Verdict |
+|---|---|---|
+| `ransomware` | 10 → 24 → 16 → 3 | benign / suspicious / ransomware |
+| `lateral` | 10 → 12 → 2 | normal / suspect |
+| `persistence` | 10 → 12 → 2 | normal / suspect |
+
+Pipeline: every eBPF event feeds a per-PID `PidFeatures` accumulator (10
+normalised behavioural features, 1-second half-life decay). When the heuristic
+fires an alert, the current embedding is (a) scored by all three heads and
+attached to the `Alert`, and (b) used as an online training sample against
+transparent heuristic teachers — one backprop step, gradient-clipped and
+update-bounded so no single sample can explode the weights (non-finite
+weights are sanitised to 0.0 instead of poisoning the checkpoint with JSON
+`null`).
+
+Checkpoints autosave every 30 s from the monitor poll loop (the TUI and web
+server own the `Monitor`, so a shutdown hook is not always reachable) and
+reload on the next start; `training_samples` survives restarts. Weight init
+is a seeded LCG — identical architectures always initialise identically, so
+tests are reproducible.
+
 ---
 
 ## 5. Data flow summary
@@ -246,6 +274,7 @@ openat entry   ──► EVENTS map ──► perf buffer ──► Msg::Event �
                                   (per CPU)           │          ├─ file_counts     ──► top-files panel
                                                       │          ├─ ext_counts      ──► file-types panel
                                                       │          ├─ rate_history    ──► sparkline charts
+                                                      │          ├─ pid_features    ──► MeMLP heads (verdict + online train)
                                                       │          └─ Alert (on threshold) ──► alerts panel
                                                       └─ Msg::Lost ──► lost counter ──► status bar
 ```

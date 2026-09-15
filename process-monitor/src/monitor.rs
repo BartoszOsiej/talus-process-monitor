@@ -28,6 +28,9 @@ const EVENT_FILENAME_LEN: usize = 64;
 const EVENT_ARGV_LEN: usize = 128;
 const WINDOW_SECS: u64 = 1;
 
+/// Learning rate for MeMLP online training (conservative — one step per alert).
+const MEMLP_LEARNING_RATE: f32 = 0.03;
+
 
 // ── eBPF event record (must match kernel-side #[repr(C)]) ────────────────
 
@@ -95,6 +98,8 @@ pub struct Alert {
     pub uid: u32,
     pub comm: String,
     pub opens: u64,
+    /// MeMLP neural verdicts for this process (None when `--memlp` is off).
+    pub memlp: Option<crate::memlp::Assessment>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -187,6 +192,14 @@ pub struct Monitor {
     pub total_events: u64,
     pub total_lost: u64,
     pub started: Instant,
+    /// MeMLP neural detection engine (None unless `--memlp` is passed).
+    memlp: Option<crate::memlp::MeMLP>,
+    /// Per-PID behavioural feature windows feeding the MeMLP engine.
+    pid_features: HashMap<u32, crate::memlp::PidFeatures>,
+    /// Checkpoint path for MeMLP autosave (None = in-memory only).
+    memlp_checkpoint: Option<std::path::PathBuf>,
+    /// Last MeMLP checkpoint autosave time.
+    memlp_last_save: Option<Instant>,
     _reader: thread::JoinHandle<()>,
     _bpf: Option<Ebpf>,
 }
@@ -325,9 +338,38 @@ impl Monitor {
             total_events: 0,
             total_lost: 0,
             started: now,
+            memlp: None,
+            pid_features: HashMap::new(),
+            memlp_checkpoint: None,
+            memlp_last_save: None,
             _reader: reader,
             _bpf: Some(bpf),
         })
+    }
+
+    /// Enable the MeMLP neural detection engine, loading a checkpoint from
+    /// `checkpoint` when given (a fresh model is created otherwise).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the checkpoint exists but cannot be parsed or has
+    /// an incompatible version.
+    pub fn enable_memlp(&mut self, checkpoint: Option<&Path>) -> Result<()> {
+        let model = match checkpoint {
+            Some(path) => crate::memlp::MeMLP::load(path)?,
+            None => crate::memlp::MeMLP::new(),
+        };
+        eprintln!(
+            "[talus] MeMLP engine enabled: {} modules, {} parameters (checkpoint: {})",
+            3,
+            model.param_count(),
+            checkpoint.map_or("in-memory".to_string(), |p| p.display().to_string())
+        );
+        self.memlp = Some(model);
+        self.pid_features.clear();
+        self.memlp_checkpoint = checkpoint.map(Path::to_path_buf);
+        self.memlp_last_save = None;
+        Ok(())
     }
 
     pub fn poll(&mut self) -> Vec<Output> {
@@ -356,6 +398,32 @@ impl Monitor {
             self.tick_opens = 0;
             self.tick_alerts = 0;
             self.tick_start = Instant::now();
+            // ── MeMLP: decay per-PID behavioural windows (1s half-life) ──
+            // Keep entries with recent activity, drop fully-stale ones so the
+            // map stays bounded by live processes.
+            if self.memlp.is_some() {
+                self.pid_features.retain(|_, f| {
+                    f.decay();
+                    f.has_activity()
+                });
+            }
+            // ── MeMLP: periodic checkpoint autosave (every 30s) ─────────
+            if self.memlp.is_some() && self.memlp_checkpoint.is_some() {
+                let due = self
+                    .memlp_last_save
+                    .map(|t| t.elapsed() >= Duration::from_secs(30))
+                    .unwrap_or(true);
+                if due {
+                    if let (Some(model), Some(path)) =
+                        (self.memlp.as_ref(), self.memlp_checkpoint.as_deref())
+                    {
+                        if let Err(e) = model.save(path) {
+                            eprintln!("[talus] WARN: MeMLP autosave failed: {e}");
+                        }
+                    }
+                    self.memlp_last_save = Some(Instant::now());
+                }
+            }
         }
         outputs
     }
@@ -370,6 +438,33 @@ impl Monitor {
             if let Some(ppid) = read_ppid_from_proc(ev.pid) {
                 e.insert(ppid);
                 stats.ppid = ppid;
+            }
+        }
+
+        // ── MeMLP: feed the live event stream to the neural engine ──────
+        if self.memlp.is_some() {
+            match ev.kind {
+                Kind::Exec => {
+                    self.pid_features.entry(ev.pid).or_default().observe_exec(false);
+                }
+                Kind::Connect | Kind::Accept | Kind::SendTo | Kind::RecvFrom => {
+                    self.pid_features.entry(ev.pid).or_default().observe_exec(true);
+                }
+                Kind::Open => {
+                    let entropy = ev.file.as_deref().map(shannon_entropy).unwrap_or(0.0);
+                    self.pid_features.entry(ev.pid).or_default().observe_open(
+                        ev.file.as_deref().unwrap_or(""),
+                        ev.extension.as_deref(),
+                        entropy,
+                    );
+                }
+                Kind::Mkdir => {
+                    self.pid_features.entry(ev.pid).or_default().observe_fs(false);
+                }
+                Kind::Unlink | Kind::Chmod => {
+                    self.pid_features.entry(ev.pid).or_default().observe_fs(true);
+                }
+                Kind::Kill => {}
             }
         }
 
@@ -412,12 +507,21 @@ impl Monitor {
                 if self.threshold > 0 && stats.window_opens == self.threshold {
                     stats.alerts += 1;
                     self.tick_alerts += 1;
+                    // ── MeMLP: online training step + neural verdict ────
+                    let memlp_verdict = if let Some(model) = self.memlp.as_mut() {
+                        let feats = self.pid_features.entry(ev.pid).or_default().features();
+                        model.train_observation(&feats, MEMLP_LEARNING_RATE);
+                        Some(model.assess(&feats))
+                    } else {
+                        None
+                    };
                     outputs.push(Output::Alert(Alert {
                         ts: ev.ts.clone(),
                         pid: ev.pid,
                         uid: ev.uid,
                         comm: ev.comm.clone(),
                         opens: stats.window_opens,
+                        memlp: memlp_verdict,
                     }));
                     // ── Response: terminate the offending process ──────────
                     if self.auto_kill {
@@ -484,6 +588,52 @@ impl Monitor {
 
     pub fn uptime(&self) -> Duration {
         self.started.elapsed()
+    }
+
+    /// MeMLP engine stats: `(training_samples, parameter_count)`.
+    /// Returns `None` when the neural engine is disabled.
+    pub fn memlp_stats(&self) -> Option<(u64, usize)> {
+        self.memlp
+            .as_ref()
+            .map(|m| (m.training_samples, m.param_count()))
+    }
+
+    /// Latest MeMLP verdicts for a PID, if the neural engine is enabled and
+    /// the process has observable activity.
+    /// Consumed by the web REST API (feature `web`); kept for embeddings.
+    #[allow(dead_code)]
+    pub fn memlp_verdict(&self, pid: u32) -> Option<crate::memlp::Assessment> {
+        let model = self.memlp.as_ref()?;
+        let feats = self.pid_features.get(&pid)?;
+        Some(model.assess(&feats.features()))
+    }
+
+    /// Persist the MeMLP checkpoint to an explicit path (no-op when the
+    /// engine is disabled). Complements the 30s poll autosave; retained as
+    /// public API for embedders and future CLI subcommands.
+    #[allow(dead_code)]
+    pub fn save_memlp(&self, path: &Path) -> Result<()> {
+        match &self.memlp {
+            Some(model) => model.save(path),
+            None => Ok(()),
+        }
+    }
+
+    /// Machine-readable summary of the MeMLP engine (JSON output / REST API).
+    #[allow(dead_code)]
+    pub fn memlp_summary(&self) -> Option<serde_json::Value> {
+        let m = self.memlp.as_ref()?;
+        Some(serde_json::json!({
+            "enabled": true,
+            "version": m.version,
+            "training_samples": m.training_samples,
+            "parameters": m.param_count(),
+            "modules": {
+                "ransomware": m.ransomware.arch(),
+                "lateral": m.lateral.arch(),
+                "persistence": m.persistence.arch(),
+            },
+        }))
     }
 
     /// Build a hierarchical process tree from the flat PID→PPID stats.
@@ -635,7 +785,7 @@ fn spawn_reader(
     let mut buffers: Vec<PerfEventArrayBuffer<MapData>> = Vec::with_capacity(cpus.len());
     for cpu in cpus {
         let buf = perf_array
-            .open(cpu, Some(8))
+            .open(cpu, Some(128))
             .context("failed to open perf buffer")?;
         buffers.push(buf);
     }
@@ -898,6 +1048,10 @@ impl Monitor {
             total_events: 0,
             total_lost: 0,
             started: now,
+            memlp: None,
+            pid_features: HashMap::new(),
+            memlp_checkpoint: None,
+            memlp_last_save: None,
             _reader: handle,
             _bpf: None,
         }

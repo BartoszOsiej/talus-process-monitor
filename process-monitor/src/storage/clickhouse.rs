@@ -34,6 +34,7 @@ use reqwest::blocking::Client;
 use super::StorageEvent;
 
 /// ClickHouse storage configuration.
+#[derive(Clone)]
 pub struct ClickHouseConfig {
     pub url: String,
     pub database: String,
@@ -202,6 +203,8 @@ fn flush_batch(
 }
 
 /// Query helper — returns top-N processes by event count.
+/// Analytics API for external dashboards; not wired into the agent loop.
+#[allow(dead_code)]
 pub fn query_top_processes(
     client: &Client,
     url: &str,

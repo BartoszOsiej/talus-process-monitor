@@ -114,7 +114,7 @@ struct HeatmapRow {
 }
 
 #[derive(Clone)]
-struct Evt { ts: String, kind: String, pid: u32, comm: String, file: Option<String>, is_alert: bool, opens: u64 }
+struct Evt { ts: String, kind: String, pid: u32, comm: String, file: Option<String>, is_alert: bool, opens: u64, memlp: Option<crate::memlp::Assessment> }
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -239,7 +239,19 @@ impl App_ {
             self.total += 1;
 
             let line = if e.is_alert {
-                format!("{} *** ALERT  [{}] {} opened {} files/s", e.ts, e.pid, e.comm, e.opens)
+                let memlp_part = e.memlp.as_ref().map(|m| {
+                    let summary = m.summary();
+                    if m.is_threat() {
+                        format!("  [MeMLP {summary} :: THREAT]")
+                    } else {
+                        format!("  [MeMLP {summary}]")
+                    }
+                });
+                format!(
+                    "{} *** ALERT  [{}] {} opened {} files/s{}",
+                    e.ts, e.pid, e.comm, e.opens,
+                    memlp_part.as_deref().unwrap_or("")
+                )
             } else {
                 format!("{} {} [{:>6}] {:<16} {}", e.ts, kind_tag, e.pid, e.comm, file_part)
             };
@@ -1012,11 +1024,11 @@ pub fn run(mut monitor: Monitor, license: LicenseState) -> anyhow::Result<()> {
         let evts: Vec<Evt> = monitor.poll().into_iter().filter_map(|o| match o {
             Output::Event(ev) => Some(Evt {
                 ts: ev.ts, kind: format!("{:?}", ev.kind), pid: ev.pid,
-                comm: ev.comm, file: ev.file, is_alert: false, opens: 0,
+                comm: ev.comm, file: ev.file, is_alert: false, opens: 0, memlp: None,
             }),
             Output::Alert(a) => Some(Evt {
                 ts: a.ts, kind: "Alert".into(), pid: a.pid,
-                comm: a.comm, file: None, is_alert: true, opens: a.opens,
+                comm: a.comm, file: None, is_alert: true, opens: a.opens, memlp: a.memlp,
             }),
             Output::Action(_) => None,
         }).collect();

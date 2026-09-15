@@ -3934,6 +3934,7 @@ dependencies = [
  "futures",
  "hex",
  "hostname 0.4.2",
+ "hyper-util",
  "libc",
  "parking_lot",
  "prometheus-client",

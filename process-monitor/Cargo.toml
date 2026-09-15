@@ -8,7 +8,7 @@ license = "MIT"
 
 [features]
 default = []
-web = ["dep:axum", "dep:tokio", "dep:tower", "dep:tower-http", "dep:prometheus-client", "dep:futures", "dep:tokio-util", "dep:parking_lot", "dep:rustls", "dep:tokio-rustls", "dep:rcgen"]
+web = ["dep:axum", "dep:tokio", "dep:tower", "dep:tower-http", "dep:prometheus-client", "dep:futures", "dep:tokio-util", "dep:parking_lot", "dep:rustls", "dep:tokio-rustls", "dep:rcgen", "dep:hyper-util"]
 kafka = ["dep:rdkafka", "dep:tokio"]
 clickhouse = ["dep:clickhouse-rs", "dep:tokio", "dep:futures"]
 memgraph = ["dep:tokio"]
@@ -59,6 +59,10 @@ parking_lot = { version = "0.12", optional = true }
 rustls = { version = "0.23", features = ["ring"], optional = true }
 tokio-rustls = { version = "0.26", optional = true }
 rcgen = { version = "0.13", optional = true }
+
+# hyper-util server builder for the TLS accept loop (axum enables only
+# `server` + `service`; the `auto` conn builder additionally needs http1/http2)
+hyper-util = { version = "0.1", optional = true, features = ["server-auto", "service", "tokio"] }
 
 # Kafka producer (optional, enabled with --features kafka)
 rdkafka = { version = "0.36", features = ["cmake-build"], optional = true }

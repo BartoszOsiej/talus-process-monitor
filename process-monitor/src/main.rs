@@ -8,6 +8,7 @@
 mod audit;
 mod ffi;
 mod license;
+mod memlp;
 mod monitor;
 mod sandbox;
 mod storage;
@@ -128,6 +129,10 @@ struct MonitorArgs {
     #[arg(long, conflicts_with_all = ["json", "plain", "tui"])]
     diagnose: bool,
 
+    /// Run a throughput benchmark: measure events/s for N seconds with synthetic I/O load
+    #[arg(long, value_name = "SECS", conflicts_with_all = ["json", "plain", "tui", "diagnose"])]
+    benchmark: Option<Option<u64>>,
+
     /// Only show events matching this extension filter (e.g. "pdf", "enc")
     #[arg(long, value_name = "EXT")]
     filter_ext: Option<String>,
@@ -159,6 +164,15 @@ struct MonitorArgs {
     /// MemGraph URL (e.g. http://localhost:7474) — enables process graph (requires Enterprise license)
     #[arg(long, value_name = "URL")]
     memgraph: Option<String>,
+
+    /// Enable the MeMLP neural detection engine (built-in, trains online from live events)
+    #[arg(long)]
+    memlp: bool,
+
+    /// MeMLP checkpoint path — loads an existing model and saves on shutdown
+    /// (default: ~/.local/share/talus/memlp.json when --memlp is set)
+    #[arg(long, value_name = "PATH", requires = "memlp")]
+    memlp_checkpoint: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -277,6 +291,7 @@ impl Default for MonitorArgs {
             plain: false,
             tui: false,
             diagnose: false,
+            benchmark: None,
             filter_ext: None,
             top_files: 8,
             web: None,
@@ -285,6 +300,8 @@ impl Default for MonitorArgs {
             kafka_topic: None,
             clickhouse: None,
             memgraph: None,
+            memlp: false,
+            memlp_checkpoint: None,
         }
     }
 }
@@ -375,6 +392,21 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
             )
         })?;
 
+    // ── MeMLP neural engine (load checkpoint when given) ──────────────
+    if args.memlp {
+        let checkpoint = match &args.memlp_checkpoint {
+            Some(p) => Some(p.clone()),
+            None => Some(
+                dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("/tmp"))
+                    .join(".local/share/talus/memlp.json"),
+            ),
+        };
+        monitor.enable_memlp(checkpoint.as_deref()).with_context(|| {
+            "failed to initialize the MeMLP neural detection engine"
+        })?;
+    }
+
     // ── Agent hardening (drop caps, seccomp, Landlock) ──────────────
     // Applied AFTER Monitor::start so aya can use syscalls during init.
     sandbox::apply(&bpf_path)?;
@@ -404,6 +436,12 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
     }
     eprintln!("  \x1b[36m║\x1b[0m  eBPF:     {:<38} \x1b[36m║\x1b[0m", bpf_path.display());
     eprintln!("  \x1b[36m║\x1b[0m  Threshold: {:<37} \x1b[36m║\x1b[0m", format!("{} opens/s", args.alert_threshold));
+    if args.memlp {
+        eprintln!(
+            "  \x1b[36m║\x1b[0m  MeMLP:    {:<38} \x1b[36m║\x1b[0m",
+            format!("neural engine ON ({})", monitor.memlp_stats().map(|(_, p)| p).unwrap_or(0))
+        );
+    }
     if args.auto_kill {
         eprintln!("  \x1b[36m║\x1b[0m  \x1b[31mMode:     EDR (auto-kill enabled)\x1b[0m              \x1b[36m║\x1b[0m");
     }
@@ -460,7 +498,10 @@ fn run_monitor(args: MonitorArgs) -> Result<()> {
         }
     }
 
-    if args.diagnose {
+    if let Some(duration) = args.benchmark {
+        let secs = duration.unwrap_or(10);
+        run_benchmark(&mut monitor, secs)?;
+    } else if args.diagnose {
         run_diagnose(&mut monitor)?;
     } else if let Some(addr_str) = &args.web {
         #[cfg(feature = "web")]
@@ -692,6 +733,175 @@ fn run_diagnose(monitor: &mut Monitor) -> Result<()> {
     Ok(())
 }
 
+/// Run a throughput benchmark for the specified duration.
+///
+/// Spawns a synthetic I/O generator (touch + read files) in a background
+/// thread to create measurable syscall traffic, then counts eBPF events
+/// for `secs` seconds and reports events/s, peak events/s, and events by type.
+fn run_benchmark(monitor: &mut Monitor, secs: u64) -> Result<()> {
+    use std::fs;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+    let running = Arc::new(AtomicBool::new(true));
+    let r = running.clone();
+
+    // ── Synthetic I/O generator (multi-threaded) ─────────────────────
+    // Spawns one thread per CPU core, each hammering openat via
+    // File::open + read to maximize syscall density.
+    let num_cpus = std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4);
+    let io_threads: Vec<_> = (0..num_cpus)
+        .map(|tid| {
+            let r = r.clone();
+            thread::Builder::new()
+                .name(format!("bench-io-{tid}"))
+                .spawn(move || {
+                    let dir = PathBuf::from(format!("/tmp/talus_bench_io_{tid}"));
+                    let _ = fs::create_dir_all(&dir);
+                    // Pre-create files
+                    for j in 0..1024 {
+                        let path = dir.join(format!("f{j}"));
+                        let _ = fs::write(&path, b"bench");
+                    }
+                    let mut i = 0u64;
+                    while r.load(Ordering::Relaxed) {
+                        let path = dir.join(format!("f{}", i & 1023));
+                        // File::open triggers openat, read triggers read syscall
+                        if let Ok(mut f) = fs::File::open(&path) {
+                            let mut buf = [0u8; 64];
+                            let _ = std::io::Read::read(&mut f, &mut buf);
+                        }
+                        i = i.wrapping_add(1);
+                    }
+                    let _ = fs::remove_dir_all(&dir);
+                })
+                .expect("failed to spawn I/O thread")
+        })
+        .collect();
+
+    println!("╔══════════════════════════════════════════════════╗");
+    println!("║  TALUS eBPF THROUGHPUT BENCHMARK                ║");
+    println!("╠══════════════════════════════════════════════════╣");
+    println!("║  Duration:    {secs:>3}s                              ║");
+    println!("║  Mode:        synthetic I/O (touch+read)         ║");
+    println!("║  Tracepoints: execve, openat + best-effort       ║");
+    println!("╚══════════════════════════════════════════════════╝");
+    println!();
+    println!("Generating synthetic I/O in background...");
+
+    let deadline = std::time::Instant::now() + Duration::from_secs(secs);
+    let mut total_execs = 0u64;
+    let mut total_opens = 0u64;
+    let mut total_net = 0u64;
+    let mut total_other = 0u64;
+    let mut total_events = 0u64;
+    let mut peak_eps = 0f64;
+    let mut tick_events = 0u64;
+    let mut tick_start = std::time::Instant::now();
+    let mut samples: Vec<f64> = Vec::new();
+
+    while std::time::Instant::now() < deadline {
+        for output in monitor.poll() {
+            match output {
+                Output::Event(ev) => {
+                    total_events += 1;
+                    tick_events += 1;
+                    match ev.kind {
+                        Kind::Exec => total_execs += 1,
+                        Kind::Open => total_opens += 1,
+                        Kind::Connect | Kind::Accept | Kind::SendTo | Kind::RecvFrom => {
+                            total_net += 1
+                        }
+                        Kind::Mkdir | Kind::Unlink | Kind::Kill | Kind::Chmod => total_other += 1,
+                    }
+                }
+                Output::Alert(_) => {}
+                Output::Action(_) => {}
+            }
+        }
+
+        if tick_start.elapsed() >= Duration::from_secs(1) {
+            let elapsed = tick_start.elapsed().as_secs_f64();
+            let eps = tick_events as f64 / elapsed;
+            samples.push(eps);
+            if eps > peak_eps {
+                peak_eps = eps;
+            }
+            let remaining = deadline
+                .saturating_duration_since(std::time::Instant::now())
+                .as_secs_f32();
+            println!(
+                "  [{:>3}s remaining]  events/s: {eps:>10.0}  peak: {peak_eps:>10.0}  total: {total_events}",
+                remaining as u64,
+            );
+            tick_events = 0;
+            tick_start = std::time::Instant::now();
+        }
+
+        thread::sleep(Duration::from_millis(10));
+    }
+
+    // Stop I/O generators
+    running.store(false, Ordering::Relaxed);
+    for t in io_threads {
+        let _ = t.join();
+    }
+
+    println!("  Events lost:       {}", monitor.total_lost);
+
+    // ── Results ──────────────────────────────────────────────────────
+    let avg_eps = if !samples.is_empty() {
+        samples.iter().sum::<f64>() / samples.len() as f64
+    } else {
+        0.0
+    };
+    let p95_idx = (samples.len() as f64 * 0.95) as usize;
+    let mut sorted = samples.clone();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let p95_eps = sorted.get(p95_idx.min(sorted.len().saturating_sub(1))).copied().unwrap_or(0.0);
+
+    println!();
+    println!("═══════════════════════════════════════════════════════════");
+    println!("  BENCHMARK RESULTS ({secs}s)");
+    println!("═══════════════════════════════════════════════════════════");
+    println!();
+    println!("  Total events:      {total_events}");
+    println!("  Events lost:       {}", monitor.total_lost);
+    println!();
+    println!("  ── Throughput ──────────────────────────────────────");
+    println!("  Average events/s:  {avg_eps:>10.0}  (delivered to userspace)");
+    println!("  Peak events/s:     {peak_eps:>10.0}");
+    println!("  P95 events/s:      {p95_eps:>10.0}");
+    let kernel_eps = avg_eps + (monitor.total_lost as f64 / secs as f64);
+    println!("  Kernel-level est:  {kernel_eps:>10.0}  (delivered + lost)");
+    println!();
+    println!("  ── Breakdown ───────────────────────────────────────");
+    println!("  Exec events:       {total_execs}");
+    println!("  Open events:       {total_opens}");
+    println!("  Network events:    {total_net}");
+    println!("  Other events:      {total_other}");
+    println!("  Alerts:            {}", monitor.total_events - total_events + total_events);
+    println!();
+    if avg_eps >= 500_000.0 {
+        println!("  ✓ Delivered throughput ≥ 500,000 events/s — PASS");
+    } else if kernel_eps >= 500_000.0 {
+        println!(
+            "  ~ Kernel-level throughput ≥ 500,000 events/s — perf buffer limited to {:.0} delivered",
+            avg_eps
+        );
+    } else {
+        println!(
+            "  ✗ Throughput {:.0} events/s — below 500,000 target",
+            avg_eps
+        );
+    }
+    println!("═══════════════════════════════════════════════════════════");
+
+    Ok(())
+}
+
 /// Install signal handlers for graceful shutdown.
 ///
 /// # Safety
@@ -753,6 +963,7 @@ fn run_json(monitor: &mut Monitor, pipeline: &storage::StoragePipeline) -> Resul
                         "uid": al.uid,
                         "comm": al.comm,
                         "opens_in_1s": al.opens,
+                        "memlp": al.memlp,
                     });
                     writeln!(out, "{value}")?;
                 }
@@ -857,12 +1068,13 @@ fn run_plain(monitor: &mut Monitor, pipeline: &storage::StoragePipeline) -> Resu
                 }
                 Output::Alert(al) => {
                     println!(
-                        "{} {} [{}] {} opened {} files in 1s!",
+                        "{} {} [{}] {} opened {} files in 1s!{}",
                         al.ts,
                         "SUSPICIOUS".yellow().bold(),
                         al.pid,
                         al.comm.bold(),
-                        al.opens
+                        al.opens,
+                        al.memlp.map(|m| format!("  [MeMLP {}]", m.summary())).unwrap_or_default()
                     );
                 }
                 Output::Action(act) => {

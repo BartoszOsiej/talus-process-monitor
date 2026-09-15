@@ -24,6 +24,7 @@ use reqwest::blocking::Client;
 use super::StorageEvent;
 
 /// MemGraph client configuration.
+#[derive(Clone)]
 pub struct MemGraphConfig {
     pub url: String,
     pub flush_interval_ms: u64,
@@ -135,7 +136,7 @@ impl MemGraphStore {
 
     /// Execute a Cypher query.
     fn cypher(&self, query: &str) -> Result<(), String> {
-        post_cypher(&self.client, &self.config.url, query)
+        post_cypher(&self.client, &self.config.url, query).map(|_| ())
     }
 
     /// Ingest an event into the graph.
@@ -168,6 +169,8 @@ impl MemGraphStore {
     }
 
     /// Query: find the process tree rooted at a given PID.
+    /// Graph-analytics API for external tooling; not called in the agent loop.
+    #[allow(dead_code)]
     pub fn query_process_tree(&self, pid: u32) -> Result<String, String> {
         let query = format!(
             "MATCH path = (root:Process {{pid: {pid}}})-[:SPAWNED*0..]->(child:Process) \
@@ -179,6 +182,7 @@ impl MemGraphStore {
     }
 
     /// Query: find all processes that opened .enc files.
+    #[allow(dead_code)]
     pub fn query_enc_opens(&self) -> Result<String, String> {
         let query =
             "MATCH (p:Process)-[r:OPENED]->(f:File) \
@@ -191,6 +195,7 @@ impl MemGraphStore {
     }
 
     /// Query: find processes with both file opens AND external network connections.
+    #[allow(dead_code)]
     pub fn query_exfiltration_candidates(&self) -> Result<String, String> {
         let query =
             "MATCH (p:Process)-[:OPENED]->(f:File), (p)-[:CONNECTED_TO]->(n:NetworkTarget) \

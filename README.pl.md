@@ -127,6 +127,10 @@ sudo process-monitor --json | jq .
 
 # Dashboard webowy (wymaga --features web)
 sudo process-monitor --web 0.0.0.0:8080
+
+# Silnik neuronowy MeMLP (trening online + checkpointy JSON)
+sudo process-monitor --memlp
+sudo process-monitor --memlp --memlp-checkpoint /var/lib/talus/memlp.json
 ```
 
 ## Klawisze TUI
