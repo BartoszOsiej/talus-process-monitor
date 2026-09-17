@@ -43,6 +43,15 @@ All notable changes to talus-process-monitor will be documented in this file.
 - Binary default endpoint switched to the worker; `TALUS_LICENSE_SERVER`
   override kept
 
+**New: admin panel (`admin-panel/`)**
+- Local web UI for the license server: overview cards (licenses, seats,
+  7-day growth, revocations), recent activations, per-license seat lookup,
+  revoke / restore / free-seat actions
+- Runs on `localhost:8787` via a zero-dependency Node proxy; the
+  `ADMIN_TOKEN` stays on the owner's machine and never reaches the browser
+- Backed by new worker endpoints: `GET /api/v1/admin/stats`,
+  `POST /api/v1/admin/unrevoke`, `POST /api/v1/admin/free-seat`
+
 **New: keygen & ops tooling**
 - `talus-keygen issue --seats N` — seat count baked into the signed payload
 - `scripts/issue-license.sh`, `scripts/revoke-license.sh`,
