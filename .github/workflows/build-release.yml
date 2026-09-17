@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
+      - run: rustup toolchain install stable
+      - run: cargo build --release
       - name: Log version
         env:
           TAG: ${{ github.ref_name }}
@@ -25,5 +27,6 @@ jobs:
           files: |
             LICENSE
             README.md
+            target/release/process-monitor
           draft: false
           prerelease: false

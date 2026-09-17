@@ -43,7 +43,7 @@ jobs:
           BUNDLE: ${{ steps.attest.outputs.bundle-path }}
           TAG: ${{ github.ref_name }}
         run: |
-          FILES="sbom.spdx.json"
+          FILES="sbom.spdx.json target/release/process-monitor"
           if [ -n "$BUNDLE" ] && [ -f "$BUNDLE" ]; then FILES="$FILES $BUNDLE"; fi
           # shellcheck disable=SC2086
           gh release upload "$TAG" $FILES --clobber
