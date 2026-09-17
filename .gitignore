@@ -11,3 +11,14 @@ target/
 
 # aurora-os is its own repo (BartoszOsiej/AURORA-OS)
 aurora-os/
+
+# ── Licensing secrets — NEVER commit these ────────────────────────────────
+# Signing keys live outside the repo: ~/.secrets/talus/license-keys/
+license-keys/
+signing_key*
+*.pem
+.dev.vars
+.env
+.env.*
+!.env.example
+wrangler.local.toml

@@ -25,8 +25,28 @@ use serde::{Deserialize, Serialize};
 const KEY_FILE: &str = "signing_key.json";
 const LICENSES_FILE: &str = "issued_licenses.json";
 
+/// Keys are NEVER stored inside the repository.
+/// Default location is `~/.secrets/talus/license-keys/` (owner-only, 0700).
+/// Override with the TALUS_KEYGEN_DIR environment variable.
 fn keys_dir() -> PathBuf {
-    PathBuf::from("license-keys")
+    if let Ok(dir) = std::env::var("TALUS_KEYGEN_DIR") {
+        return PathBuf::from(dir);
+    }
+    let home = std::env::var("HOME")
+        .map(PathBuf::from)
+        .expect("HOME not set; set TALUS_KEYGEN_DIR instead");
+    home.join(".secrets").join("talus").join("license-keys")
+}
+
+/// Ensure the keys directory exists with owner-only permissions (0700).
+fn ensure_keys_dir() -> Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let dir = keys_dir();
+    fs::create_dir_all(&dir).context("failed to create keys directory")?;
+    fs::set_permissions(&dir, fs::Permissions::from_mode(0o700))
+        .context("failed to set keys directory permissions")?;
+    Ok(())
 }
 
 fn signing_key_path() -> PathBuf {
@@ -78,13 +98,9 @@ impl LicenseRegistry {
     }
 
     fn save(&self) -> Result<()> {
-        let dir = keys_dir();
-        fs::create_dir_all(&dir)
-            .context("failed to create license-keys directory")?;
-        let data = serde_json::to_string_pretty(self)
-            .context("failed to serialize registry")?;
-        fs::write(licenses_path(), data)
-            .context("failed to write registry")?;
+        ensure_keys_dir()?;
+        let data = serde_json::to_string_pretty(self).context("failed to serialize registry")?;
+        write_secret_file(&licenses_path(), data.as_bytes()).context("failed to write registry")?;
         Ok(())
     }
 }
@@ -132,6 +148,11 @@ enum Commands {
         /// Explicit feature list (comma-separated). Omit for tier defaults.
         #[arg(long)]
         features: Option<String>,
+
+        /// Seat count — number of machines that may activate simultaneously
+        /// (enforced server-side at activation time).
+        #[arg(long, default_value_t = 1)]
+        seats: u32,
     },
 
     /// Verify a license key signature
@@ -165,7 +186,16 @@ fn main() -> Result<()> {
             license_id,
             max_nodes,
             features,
-        } => cmd_issue(tier, organization, expires, license_id, max_nodes, features)?,
+            seats,
+        } => cmd_issue(
+            tier,
+            organization,
+            expires,
+            license_id,
+            max_nodes,
+            features,
+            seats,
+        )?,
         Commands::Verify { key } => cmd_verify(key)?,
         Commands::List => cmd_list()?,
         Commands::ExportPublic => cmd_export_public()?,
@@ -178,7 +208,6 @@ fn main() -> Result<()> {
 // ── Commands ──────────────────────────────────────────────────────────────
 
 fn cmd_init() -> Result<()> {
-    let dir = keys_dir();
     let key_path = signing_key_path();
 
     if key_path.exists() {
@@ -188,7 +217,7 @@ fn cmd_init() -> Result<()> {
         return Ok(());
     }
 
-    fs::create_dir_all(&dir)?;
+    ensure_keys_dir()?;
 
     println!("🔑 Generating Ed25519 signing keypair...");
 
@@ -202,9 +231,10 @@ fn cmd_init() -> Result<()> {
     };
 
     let json = serde_json::to_string_pretty(&data)?;
-    fs::write(&key_path, &json)?;
+    write_secret_file(&key_path, json.as_bytes())?;
 
     println!("✓ Signing key saved to: {}", key_path.display());
+    println!("  (permissions 0600 — outside the repository)");
     println!();
     println!("Public key (hex):");
     println!("  {}", data.public_key_hex);
@@ -226,6 +256,7 @@ fn cmd_issue(
     license_id: Option<String>,
     max_nodes: u32,
     features: Option<String>,
+    seats: u32,
 ) -> Result<()> {
     let key_data = load_signing_key()?;
 
@@ -264,8 +295,16 @@ fn cmd_issue(
     // Generate license ID
     let id = license_id.unwrap_or_else(|| {
         use std::time::{SystemTime, UNIX_EPOCH};
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        format!("TALUS-{:04X}-{:04X}-{:04X}", (ts >> 32) & 0xFFFF, (ts >> 16) & 0xFFFF, ts & 0xFFFF)
+        let ts = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        format!(
+            "TALUS-{:04X}-{:04X}-{:04X}",
+            (ts >> 32) & 0xFFFF,
+            (ts >> 16) & 0xFFFF,
+            ts & 0xFFFF
+        )
     });
 
     // Build payload
@@ -278,6 +317,7 @@ fn cmd_issue(
         "issued_at": Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string(),
         "machine_id": null,
         "organization": organization,
+        "seat_count": seats.max(1),
     });
 
     let payload_bytes = serde_json::to_vec(&payload)?;
@@ -319,7 +359,15 @@ fn cmd_issue(
     } else {
         println!("  Expires:       never (perpetual)");
     }
-    println!("  Max nodes:     {}", if max_nodes == 0 { "unlimited".into() } else { max_nodes.to_string() });
+    println!(
+        "  Max nodes:     {}",
+        if max_nodes == 0 {
+            "unlimited".into()
+        } else {
+            max_nodes.to_string()
+        }
+    );
+    println!("  Seats:         {}", seats.max(1));
     if let Some(ref f) = features_list {
         println!("  Features:      {}", f.join(", "));
     } else {
@@ -422,17 +470,16 @@ fn cmd_list() -> Result<()> {
 fn cmd_export_public() -> Result<()> {
     let key_data = load_signing_key()?;
 
-    let public_bytes: Vec<u8> = hex::decode(&key_data.public_key_hex)
-        .context("invalid public key hex")?;
+    let public_bytes: Vec<u8> =
+        hex::decode(&key_data.public_key_hex).context("invalid public key hex")?;
 
     println!("// Copy this into process-monitor/src/license.rs");
     println!("// Replace the PUBLIC_KEY_BYTES constant:");
     println!();
     println!("const PUBLIC_KEY_BYTES: [u8; 32] = [");
-    for (i, chunk) in public_bytes.chunks(8).enumerate() {
+    for chunk in public_bytes.chunks(8) {
         let hex_vals: Vec<String> = chunk.iter().map(|b| format!("0x{:02x}", b)).collect();
-        let suffix = if i < 3 { "," } else { "," };
-        println!("    {}, // {}", hex_vals.join(", "), suffix);
+        println!("    {},", hex_vals.join(", "));
     }
     println!("];");
 
@@ -456,6 +503,20 @@ fn cmd_revoke(license_id: String) -> Result<()> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
+
+/// Write a file with owner-only permissions (0600).
+fn write_secret_file(path: &PathBuf, bytes: &[u8]) -> Result<()> {
+    use std::io::Write;
+    use std::os::unix::fs::PermissionsExt;
+
+    let mut file =
+        fs::File::create(path).with_context(|| format!("failed to create {}", path.display()))?;
+    file.write_all(bytes)
+        .with_context(|| format!("failed to write {}", path.display()))?;
+    file.set_permissions(fs::Permissions::from_mode(0o600))
+        .with_context(|| format!("failed to set permissions on {}", path.display()))?;
+    Ok(())
+}
 
 fn load_signing_key() -> Result<SigningKeyData> {
     let path = signing_key_path();
