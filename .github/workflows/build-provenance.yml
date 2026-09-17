@@ -30,8 +30,12 @@ jobs:
 
       - name: Determine version
         id: version
+        env:
+          # Passed via env (not direct expansion) so tag strings can never
+          # be interpreted as workflow script (zizmor template-injection).
+          GIT_TAG: ${{ github.ref_name }}
         run: |
-          TAG="${{ github.ref_name }}"
+          TAG="$GIT_TAG"
           VERSION="${TAG#v}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
@@ -71,7 +75,6 @@ jobs:
         id: hash
         run: |
           SHA256SUM=$(sha256sum talus-tui talus-web talus-ebpf.o | base64 -w0)
-          SHA512SUM=$(sha512sum talus-tui talus-web talus-ebpf.o | base64 -w0)
           echo "hashes=${SHA256SUM}" >> "$GITHUB_OUTPUT"
 
           # Generate checksum files
@@ -240,27 +243,31 @@ jobs:
           # Get last tag
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "$PREV_TAG" ]; then
-            echo "Changes since ${PREV_TAG}:" > release-notes.md
-            echo "" >> release-notes.md
-            git log "${PREV_TAG}..HEAD" --pretty=format:"- %s" >> release-notes.md
+            {
+              echo "Changes since ${PREV_TAG}:"
+              echo ""
+              git log "${PREV_TAG}..HEAD" --pretty=format:"- %s"
+            } > release-notes.md
           else
             echo "Initial release" > release-notes.md
           fi
-          echo "" >> release-notes.md
-          echo "" >> release-notes.md
-          echo "---" >> release-notes.md
-          echo "## Verification" >> release-notes.md
-          echo "" >> release-notes.md
-          echo '```bash' >> release-notes.md
-          echo "# Verify checksums" >> release-notes.md
-          echo "sha256sum -c checksums-sha256.txt" >> release-notes.md
-          echo "" >> release-notes.md
-          echo "# Verify Cosign signature (requires cosign)" >> release-notes.md
-          echo 'COSIGN_EXPERIMENTAL=1 cosign verify-blob talus-tui --signature talus-tui.sig' >> release-notes.md
-          echo "" >> release-notes.md
-          echo "# Verify SLSA provenance (requires slsa-verifier)" >> release-notes.md
-          echo 'slsa-verifier verify-artifact talus-tui --provenance-path multiple.intoto.jsonl' >> release-notes.md
-          echo '```' >> release-notes.md
+          {
+            echo ""
+            echo ""
+            echo "---"
+            echo "## Verification"
+            echo ""
+            echo '```bash'
+            echo "# Verify checksums"
+            echo "sha256sum -c checksums-sha256.txt"
+            echo ""
+            echo "# Verify Cosign signature (requires cosign)"
+            echo 'COSIGN_EXPERIMENTAL=1 cosign verify-blob talus-tui --signature talus-tui.sig'
+            echo ""
+            echo "# Verify SLSA provenance (requires slsa-verifier)"
+            echo 'slsa-verifier verify-artifact talus-tui --provenance-path multiple.intoto.jsonl'
+            echo '```'
+          } >> release-notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65  # v2

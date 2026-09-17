@@ -1,0 +1,20 @@
+# ── typos configuration ───────────────────────────────────────────────────
+# Only suppresses confirmed false positives; real typos must stay fixable.
+[default.extend-identifiers]
+# Loop variables and locals in memlp.rs / tui.rs hot paths (NOT the word "and").
+nd = "nd"
+ba = "ba"
+# Vendor name, not a typo of "Hash".
+Hashi = "Hashi"
+
+[default.extend-words]
+# Hyphenation pattern tables in ftui-text (Knuth-Liang fragments, not words).
+ba = "ba"
+nd = "nd"
+
+[files]
+# Generated reports embed base64 blobs that the dictionary misreads.
+extend-exclude = [
+    "docs/enterprise-upgrade-report.html",
+    "docs/linkedin-report.html",
+]
