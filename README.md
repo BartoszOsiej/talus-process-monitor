@@ -492,13 +492,11 @@ talus-process-monitor/
 ├── proto/                    # Protobuf schema (gRPC)
 ├── fuzz/                     # Fuzzing harness
 ├── demos/                    # Recorded demo tape
-├── docs/                     # Additional documentation
+├── docs/                     # Landing page, reports (TEST_REPORT, VERIFICATION-EBPF, NEW_FEATURES), licensing docs
 ├── screenshots/              # TUI screenshots
 ├── build.sh                  # Build script (--web / --all / --check)
-├── build-c.sh                # Build C eBPF variant
 ├── install.sh                # Distro-aware installer
 ├── install-gui.sh            # Graphical (zenity) installer
-├── Makefile                  # Task runner
 └── Cargo.toml                # Workspace definition
 ```
 
@@ -766,5 +764,5 @@ MIT (see [LICENSE](LICENSE) for details)
 ## Deep Dives
 
 Extended dossiers (architecture, verification, benchmarks, error codex) ship in this repo:
-- [VERIFICATION-EBPF.md](VERIFICATION-EBPF.md)
+- [VERIFICATION-EBPF.md](docs/VERIFICATION-EBPF.md)
 - [SECURITY.md](SECURITY.md)

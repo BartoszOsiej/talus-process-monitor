@@ -33,7 +33,7 @@ Talus Process Monitor śledzi syscalle `execve`, `openat`, `connect`, `accept`, 
 
 ## Wersja angielska
 
-**[English README](README.md)** · [Nowe funkcje v0.4](NEW_FEATURES.md) · [Architektura](ARCHITECTURE.md)
+**[English README](README.md)** · [Nowe funkcje v0.4](docs/NEW_FEATURES.md) · [Architektura](ARCHITECTURE.md)
 
 ## Funkcje
 
@@ -303,7 +303,7 @@ talus-process-monitor/
 ├── proto/                    # Schemat Protobuf (definicja usługi gRPC)
 ├── build.sh                  # Skrypt budowania (--web, --all)
 ├── install.sh                # Instalator rozpoznający dystrybucję
-├── NEW_FEATURES.md           # Dokumentacja funkcji v0.4
+├── docs/NEW_FEATURES.md      # Dokumentacja funkcji v0.4
 └── Cargo.toml                # Definicja workspace'a
 ```
 
