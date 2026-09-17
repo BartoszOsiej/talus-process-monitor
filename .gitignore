@@ -9,6 +9,12 @@ target/
 *.swo
 *.o
 
+# Build outputs — compiled binaries and libraries are never committed
+# (rebuild with: make, ./build.sh; releases attach them via CI)
+build/
+talus-web
+talus-tui
+
 # aurora-os is its own repo (BartoszOsiej/AURORA-OS)
 aurora-os/
 
