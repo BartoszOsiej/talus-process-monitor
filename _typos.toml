@@ -195,8 +195,6 @@ extend-exclude = [
     "README.pl.md",          # Polish text trips the English dictionary
     "link for buy.md",       # owner's Polish working note
     "ARCHITECTURE.md",
-    "frankentui/ftui-demo-showcase/data/**",   # vendored sqlite3.c, shakespeare.txt
-    "frankentui/ftui-demo-showcase/tests/**",  # rendered snapshot fixtures
     "frankentui/**/tests/snapshots/**",        # insta snapshot files everywhere
     "docs/enterprise-upgrade-report.html",     # generated, embeds base64 blobs
     "docs/linkedin-report.html",
