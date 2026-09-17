@@ -22,3 +22,6 @@ signing_key*
 .env.*
 !.env.example
 wrangler.local.toml
+
+# license-server
+node_modules/
