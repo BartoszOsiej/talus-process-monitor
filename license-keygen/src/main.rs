@@ -153,6 +153,11 @@ enum Commands {
         /// (enforced server-side at activation time).
         #[arg(long, default_value_t = 1)]
         seats: u32,
+
+        /// Print machine-readable JSON (license key + metadata) instead of
+        /// the boxed human display. Used by scripts/issue-license.sh.
+        #[arg(long)]
+        json: bool,
     },
 
     /// Verify a license key signature
@@ -187,6 +192,7 @@ fn main() -> Result<()> {
             max_nodes,
             features,
             seats,
+            json,
         } => cmd_issue(
             tier,
             organization,
@@ -195,6 +201,7 @@ fn main() -> Result<()> {
             max_nodes,
             features,
             seats,
+            json,
         )?,
         Commands::Verify { key } => cmd_verify(key)?,
         Commands::List => cmd_list()?,
@@ -257,6 +264,7 @@ fn cmd_issue(
     max_nodes: u32,
     features: Option<String>,
     seats: u32,
+    json_output: bool,
 ) -> Result<()> {
     let key_data = load_signing_key()?;
 
@@ -343,7 +351,22 @@ fn cmd_issue(
     });
     registry.save()?;
 
-    // Display
+    // Display — machine-readable JSON for scripts, boxed box for humans.
+    if json_output {
+        let out = serde_json::json!({
+            "license_id": id,
+            "tier": tier_lower,
+            "organization": organization,
+            "expires_at": expires_at,
+            "max_nodes": max_nodes,
+            "seats": seats.max(1),
+            "features": features_list,
+            "license_key": key_string,
+        });
+        println!("{out}");
+        return Ok(());
+    }
+
     println!();
     println!("═══════════════════════════════════════════════════════════");
     println!("  LICENSE KEY GENERATED");

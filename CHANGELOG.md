@@ -66,10 +66,16 @@ All notable changes to talus-process-monitor will be documented in this file.
   green 14/14 against production
 
 **New: keygen & ops tooling**
-- `talus-keygen issue --seats N` — seat count baked into the signed payload
+- `talus-keygen issue --seats N` — seat count baked into the signed payload;
+  `--json` flag for machine-readable output (used by automation)
 - `scripts/issue-license.sh`, `scripts/revoke-license.sh`,
   `scripts/list-activations.sh`, `scripts/health-check.sh` (no secrets in
   scripts; admin token read from `~/.secrets/talus/admin_token`)
+- **Automated issuing**: `issue-license.sh` signs locally, then
+  pre-registers the key on the server (`POST /api/v1/admin/register`) so it
+  is visible in the panel immediately; `--count N` issues N keys for one
+  organization in one run; `--offline` skips registration (the key
+  self-registers on first activation)
 
 **New: sales-ready documentation**
 - `docs/EULA.txt` — license agreement template (no amounts)

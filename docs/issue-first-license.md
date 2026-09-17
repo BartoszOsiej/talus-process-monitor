@@ -41,13 +41,14 @@ Two options:
 
 ### Option B — automated webhook (later, optional)
 
-Lemon Squeezy / Gumroad can call a webhook on order completion. To automate
-issuing, add a small admin endpoint (`/api/v1/admin/issue`) that accepts a
-signed webhook (verify the platform's HMAC signature header) and shells the
-issuing logic. Until that exists, issuing is a one-line manual step —
-honestly fine for the first handful of sales. Do **not** wire the webhook to
-anything that would require putting the signing key on the server; issue
-locally, upload nothing.
+Lemon Squeezy / Gumroad can call a webhook on order completion. The issuing
+step itself is already a one-liner (step 3 below), so a pragmatic
+semi-automation is a tiny listener that receives the platform's signed
+webhook (verify its HMAC signature header) and shells out to
+`scripts/issue-license.sh` with the order's parameters. Do **not** wire the
+webhook to anything that would require putting the signing key on the
+server — issue locally, upload nothing. Until that listener exists, issuing
+is a single manual command — honestly fine for the first handful of sales.
 
 ---
 
@@ -67,6 +68,22 @@ From the purchase record:
 
 ```bash
 ./scripts/issue-license.sh --org "Acme Corp" --seats 5 --expires 2027-09-17
+```
+
+The script signs the key locally **and pre-registers it on the server**
+(`POST /api/v1/admin/register`), so the license is visible in the admin
+panel the moment you issue it — before the customer even downloads Talus.
+If the server is unreachable the key is still valid; it self-registers at
+first activation.
+
+Useful variants:
+
+```bash
+# Volume pack: 5 keys for one organization (seats are per key)
+./scripts/issue-license.sh --org "Acme Corp" --seats 3 --count 5
+
+# Skip server registration (key registers on first activation)
+./scripts/issue-license.sh --org "Acme Corp" --offline
 ```
 
 Output (locally only):

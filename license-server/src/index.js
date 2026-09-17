@@ -459,6 +459,55 @@ async function handle_admin(request, env, pathname) {
     return json_response({ success: true, message: `license ${license_id} restored` });
   }
 
+  if (action === 'register') {
+    // Pre-register a license so it is visible in the panel from the moment
+    // of issue (before the customer's first activation). The row must match
+    // the signed payload — on any mismatch the signature wins (the row is
+    // reset from the key at first activation).
+    const tier = str_field(body.value.tier);
+    if (!tier) {
+      return json_response({ success: false, message: 'missing tier' }, 400);
+    }
+    const seat_count = Number(body.value.max_seats);
+    const max_seats =
+      Number.isInteger(seat_count) && seat_count > 0 ? seat_count : 1;
+    const max_nodes = Number(body.value.max_nodes) || 0;
+    const expires_at = str_field(body.value.expires_at);
+    if (expires_at && !ISO_RE.test(expires_at)) {
+      return json_response(
+        { success: false, message: 'expires_at must be YYYY-MM-DDTHH:MM:SSZ' },
+        400,
+      );
+    }
+    const now = now_iso();
+    await env.DB.prepare(
+      `INSERT INTO licenses (license_id, tier, org, features, max_nodes, max_seats, expires_at, revoked, issued_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8)
+       ON CONFLICT(license_id) DO UPDATE SET
+         tier = excluded.tier,
+         org = excluded.org,
+         features = excluded.features,
+         max_nodes = excluded.max_nodes,
+         max_seats = excluded.max_seats,
+         expires_at = excluded.expires_at`,
+    )
+      .bind(
+        license_id,
+        tier,
+        str_field(body.value.org) ?? null,
+        body.value.features ? JSON.stringify(body.value.features) : null,
+        max_nodes,
+        max_seats,
+        expires_at ?? null,
+        now,
+      )
+      .run();
+    return json_response({
+      success: true,
+      message: `license ${license_id} pre-registered`,
+    });
+  }
+
   if (action === 'free-seat') {
     const machine_id = str_field(body.value.machine_id);
     if (!machine_id) {
