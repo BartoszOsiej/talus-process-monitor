@@ -60,6 +60,30 @@ async function refresh() {
       <td>${esc(r.org ?? '—')}</td>
       <td class="dim">${esc(fmt_date(r.revoked_at))}</td>
     </tr>`).join('') || '<tr><td colspan="3" class="dim">Nothing revoked.</td></tr>';
+
+  // Store orders (fulfillment queue) — loaded separately, non-fatal if empty.
+  load_orders();
+}
+
+async function load_orders() {
+  const { ok, data } = await api('/api/v1/admin/orders', {
+    method: 'POST',
+    body: JSON.stringify({ status: 'all' }),
+  });
+  if (!ok) return;
+  const tbody = $('orders-table').querySelector('tbody');
+  const orders = data.orders ?? [];
+  tbody.innerHTML = orders.map((o) => `
+    <tr>
+      <td>${esc(o.store)}</td>
+      <td><code>${esc(o.order_id)}</code></td>
+      <td>${esc(o.product ?? '—')}</td>
+      <td>${esc(o.email ?? '—')}</td>
+      <td>${esc(o.seats ?? 1)}</td>
+      <td><span class="pill ${o.status === 'pending' ? 'bad' : o.status === 'fulfilled' ? 'good' : ''}">${esc(o.status)}</span></td>
+      <td>${o.license_id ? `<code>${esc(o.license_id)}</code>` : '<span class="dim">—</span>'}</td>
+      <td class="dim">${esc(fmt_date(o.created_at))}</td>
+    </tr>`).join('') || '<tr><td colspan="8" class="dim">No store orders yet.</td></tr>';
 }
 
 // ── Lookup ────────────────────────────────────────────────────────────────

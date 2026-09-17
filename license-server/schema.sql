@@ -66,3 +66,46 @@ CREATE TABLE IF NOT EXISTS totp_used (
   counter INTEGER PRIMARY KEY,
   used_at TEXT NOT NULL
 );
+
+-- ── Store integrations (Polar / Gumroad / Lemon Squeezy) ───────────────────
+
+-- One row per store purchase (created by the platform webhook). The issuer
+-- daemon fulfills pending orders: it signs a Talus license locally and
+-- records the store-key → license mapping. Refund webhooks revoke.
+CREATE TABLE IF NOT EXISTS orders (
+  store           TEXT NOT NULL,
+  order_id        TEXT NOT NULL,
+  product         TEXT,
+  email           TEXT,
+  seats           INTEGER NOT NULL DEFAULT 1,
+  expires_at      TEXT,
+  status          TEXT NOT NULL DEFAULT 'pending',
+  store_key_hash  TEXT,
+  store_key_hint  TEXT,
+  license_id      TEXT,
+  created_at      TEXT NOT NULL,
+  fulfilled_at    TEXT,
+  PRIMARY KEY (store, order_id)
+);
+CREATE INDEX IF NOT EXISTS idx_orders_status ON orders (status);
+
+-- The "translation dictionary": store key (hashed) → Talus license. The
+-- Talus license key itself is public data (signed payload + signature), so
+-- it can be returned to the customer at activation time.
+CREATE TABLE IF NOT EXISTS store_keys (
+  store              TEXT NOT NULL,
+  store_key_hash     TEXT NOT NULL,
+  license_id         TEXT NOT NULL,
+  talus_license_key  TEXT,
+  issued_at          TEXT NOT NULL,
+  PRIMARY KEY (store, store_key_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_store_keys_hash ON store_keys (store_key_hash);
+
+-- Store keys presented at activation that have no mapping yet (customer was
+-- faster than fulfillment, or the webhook never arrived). Purely diagnostic.
+CREATE TABLE IF NOT EXISTS pending_store_keys (
+  key_hash  TEXT PRIMARY KEY,
+  last_seen TEXT NOT NULL,
+  attempts  INTEGER NOT NULL DEFAULT 1
+);

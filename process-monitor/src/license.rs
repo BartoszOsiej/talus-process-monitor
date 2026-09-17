@@ -480,10 +480,64 @@ fn check_activation_rate_limit() -> Result<()> {
     Ok(())
 }
 
+/// Ask the server to translate a store key (Polar / Gumroad / Lemon
+/// Squeezy) into a Talus license. Returns the Talus key string. The server
+/// verifies the purchase mapping — the reply is a native signed key, so all
+/// downstream verification applies unchanged.
+fn redeem_store_key(store_key: &str) -> Result<String> {
+    let server_url = activation_server_url();
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .context("failed to create HTTP client")?;
+
+    let response = client
+        .post(format!("{server_url}/api/v1/redeem"))
+        .json(&serde_json::json!({ "key": store_key.trim() }))
+        .send()
+        .context("failed to connect to activation server")?;
+
+    let status = response.status();
+    let body: serde_json::Value = response.json().context("failed to parse redeem response")?;
+
+    if !status.is_success() || !body["success"].as_bool().unwrap_or(false) {
+        let msg = body["message"]
+            .as_str()
+            .unwrap_or("store key not recognized");
+        audit_log("REDEEM_FAILED", "store-key", &format!("{status}: {msg}"));
+        bail!(
+            "this does not look like a Talus license key ({}). \
+             Store purchases are translated automatically — try again in a few minutes",
+            msg
+        );
+    }
+
+    let talus_key = body["license_key"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("redeem response missing license_key"))?;
+
+    audit_log(
+        "REDEEM_OK",
+        "store-key",
+        "store key translated to Talus license",
+    );
+    Ok(talus_key.to_string())
+}
+
 /// Activate a license key against the online server.
 pub fn activate_license(key: &str) -> Result<LicenseCache> {
     // Rate limit activation attempts
     check_activation_rate_limit()?;
+
+    // ── Store-key redemption ───────────────────────────────────────────────
+    // Keys purchased through a store (Polar / Gumroad / Lemon Squeezy) are
+    // not native Talus keys. If local parsing fails, ask the server to
+    // translate the store key into a Talus license and continue with that.
+    // Native keys (payload.signature) skip this entirely.
+    let key = match LicenseKey::parse(key) {
+        Ok(_) => key,
+        Err(_) => &redeem_store_key(key)?,
+    };
 
     // Parse and verify the key locally first
     let license_key =

@@ -39,16 +39,46 @@ Two options:
 1. Customer pays via bank transfer / PayPal / Stripe payment link.
 2. You confirm the money arrived.
 
-### Option B — automated webhook (later, optional)
+### Option B — store platforms with automatic fulfillment (implemented)
 
-Lemon Squeezy / Gumroad can call a webhook on order completion. The issuing
-step itself is already a one-liner (step 3 below), so a pragmatic
-semi-automation is a tiny listener that receives the platform's signed
-webhook (verify its HMAC signature header) and shells out to
-`scripts/issue-license.sh` with the order's parameters. Do **not** wire the
-webhook to anything that would require putting the signing key on the
-server — issue locally, upload nothing. Until that listener exists, issuing
-is a single manual command — honestly fine for the first handful of sales.
+The server now speaks to **Polar**, **Gumroad** and **Lemon Squeezy**
+directly. The customer buys on the platform and receives the platform's
+license key; the "translation" to a real Talus license is automatic:
+
+```
+purchase on store ──► signed webhook ──► pending order (D1)
+                                              │
+                    issuer daemon (your machine, holds the signing key)
+                    signs a Talus license + maps store-key → Talus key
+                                              ▼
+customer runs: talus license activate <STORE-KEY>   ← works directly!
+```
+
+Setup per platform (one-time):
+
+1. Create the product (e.g. "Talus Enterprise (Single Seat)" — the seat
+   count is parsed from the name: "3 Seat" → 3, "5 Seat" → 5).
+2. Set the webhook URL to
+   `https://talus-license-server.metaforicmail.workers.dev/api/v1/webhook/<platform>`
+   and copy the platform's signing secret into a Worker secret:
+
+   ```bash
+   cd license-server && npx wrangler secret put POLAR_WEBHOOK_SECRET
+   npx wrangler secret put GUMROAD_WEBHOOK_SECRET
+   npx wrangler secret put LEMON_SQUEEZY_WEBHOOK_SECRET
+   ```
+
+3. Run the fulfillment daemon on your machine (loop or cron):
+
+   ```bash
+   node scripts/issuer-daemon.mjs          # loop every 60 s
+   node scripts/issuer-daemon.mjs --once   # single pass (systemd timer)
+   ```
+
+Refunds on the platform automatically revoke the translated Talus license
+and free all seats. If a customer tries to activate before the daemon has
+fulfilled the order, activation returns a clear "retry in a few minutes"
+message — fulfillment is automatic; nothing to do by hand.
 
 ---
 

@@ -51,6 +51,72 @@ import admin_html from './admin-assets/admin.html';
 import admin_css from './admin-assets/style.css';
 import admin_js from './admin-assets/app.js';
 
+// Store webhook handlers (Polar / Gumroad / Lemon Squeezy) — the "bridge"
+// that turns a store purchase into a pending order for the issuer daemon.
+import {
+  handle_store_webhook,
+  handle_redeem_lookup,
+  resolve_key,
+} from './store-bridge.js';
+
+// POST /api/v1/redeem { key } — translate a store key into the mapped Talus
+// license. Rate-limited per key hash (8 tries / 5 min) to blunt guessing;
+// store keys are high-entropy, so brute force is impractical anyway.
+async function handle_redeem(request, env) {
+  if (!env.DB) return env_error('DB binding');
+
+  const body = await read_json(request);
+  if (!body.ok) return json_response({ success: false, message: body.error }, 400);
+  const key = str_field(body.value.key);
+  if (!key || key.length > 8192) {
+    return json_response({ success: false, message: 'missing key' }, 400);
+  }
+
+  const key_hash = await sha256_hex(normalize_store_key(key));
+  const now_s = Math.floor(Date.now() / 1000);
+  await env.DB.prepare('DELETE FROM rate_events WHERE ts < ?1')
+    .bind(now_s - 300)
+    .run();
+  await env.DB.prepare('INSERT INTO rate_events (bucket, ts) VALUES (?1, ?2)')
+    .bind(`redeem:${key_hash.slice(0, 16)}`, now_s)
+    .run();
+  const { results } = await env.DB.prepare(
+    'SELECT COUNT(*) AS n FROM rate_events WHERE bucket = ?1 AND ts >= ?2',
+  )
+    .bind(`redeem:${key_hash.slice(0, 16)}`, now_s - 300)
+    .all();
+  if ((results?.[0]?.n ?? 0) > 8) {
+    return json_response(
+      { success: false, message: 'too many attempts — try again later' },
+      429,
+    );
+  }
+
+  const resolved = await resolve_key(env, key);
+  if (resolved.kind === 'store') {
+    return json_response({
+      success: true,
+      license_key: resolved.license_key,
+      license_id: resolved.license_id,
+      message: 'store key translated — run `talus license activate <KEY>` with this key',
+    });
+  }
+  if (resolved.kind === 'talus') {
+    return json_response(
+      { success: false, message: 'this is already a native Talus license key' },
+      400,
+    );
+  }
+  return json_response(
+    {
+      success: false,
+      message:
+        'store key not fulfilled yet — if you just purchased, retry in a few minutes',
+    },
+    404,
+  );
+}
+
 // ── Environment / secrets ─────────────────────────────────────────────────
 //
 // vars (wrangler.toml):
@@ -104,6 +170,23 @@ export default {
 
       if (pathname.startsWith('/api/v1/admin/') && request.method === 'POST') {
         return handle_admin(request, env, pathname);
+      }
+
+      // ── Store webhooks (purchase → pending order) + redeem lookup ──────
+      if (pathname === '/api/v1/webhook/polar' && request.method === 'POST') {
+        return handle_store_webhook(request, env, 'polar');
+      }
+      if (pathname === '/api/v1/webhook/gumroad' && request.method === 'POST') {
+        return handle_store_webhook(request, env, 'gumroad');
+      }
+      if (pathname === '/api/v1/webhook/lemonsqueezy' && request.method === 'POST') {
+        return handle_store_webhook(request, env, 'lemonsqueezy');
+      }
+      if (pathname === '/api/v1/redeem-lookup' && request.method === 'POST') {
+        return handle_redeem_lookup(request, env);
+      }
+      if (pathname === '/api/v1/redeem' && request.method === 'POST') {
+        return handle_redeem(request, env);
       }
 
       // ── Admin panel (web UI, TOTP session) ──────────────────────────────
@@ -184,8 +267,28 @@ async function handle_activate(request, env) {
     );
   }
 
+  // ── Store-key translation ("redeem") ────────────────────────────────
+  // A store key (Polar / Gumroad / Lemon Squeezy purchase) is translated
+  // into the real Talus license via the store_keys mapping filled by the
+  // issuer daemon. Unknown keys are recorded for fulfillment and rejected
+  // with a retry hint.
+  let effective_key = license_key;
+  const resolved = await resolve_key(env, license_key);
+  if (resolved.kind === 'store') {
+    effective_key = resolved.license_key;
+  } else if (resolved.kind === 'unknown') {
+    return json_response(
+      {
+        success: false,
+        message:
+          'license key not recognized yet — if you just purchased, retry in a few minutes',
+      },
+      404,
+    );
+  }
+
   // ── Signature verification (server holds the public key only) ──────────
-  const parts = license_key.split('.');
+  const parts = effective_key.split('.');
   if (parts.length !== 2) {
     return json_response(
       { success: false, message: 'invalid license key format' },
@@ -418,9 +521,14 @@ async function handle_admin(request, env, pathname) {
   if (!body.ok) {
     return json_response({ success: false, message: body.error }, 400);
   }
-  const license_id = str_field(body.value.license_id);
-  if (!license_id) {
-    return json_response({ success: false, message: 'missing license_id' }, 400);
+
+  // The orders listing does not target a single license — it is keyed by
+  // status only. Every other action requires a license_id.
+  if (action !== 'orders' && action !== 'fulfill') {
+    const license_id = str_field(body.value.license_id);
+    if (!license_id) {
+      return json_response({ success: false, message: 'missing license_id' }, 400);
+    }
   }
 
   if (action === 'revoke') {
@@ -457,6 +565,87 @@ async function handle_admin(request, env, pathname) {
       env.DB.prepare('DELETE FROM revocations WHERE license_id = ?1').bind(license_id),
     ]);
     return json_response({ success: true, message: `license ${license_id} restored` });
+  }
+
+  if (action === 'orders') {
+    // Fulfillment queue for the issuer daemon + panel.
+    const status_filter = str_field(body.value.status) ?? 'pending';
+    if (status_filter === 'all') {
+      const { results } = await env.DB.prepare(
+        'SELECT store, order_id, product, email, seats, status, license_id, created_at, fulfilled_at FROM orders ORDER BY created_at DESC LIMIT 50',
+      ).all();
+      return json_response({ success: true, orders: results ?? [] });
+    }
+    const { results } = await env.DB.prepare(
+      'SELECT store, order_id, product, email, seats, status, license_id, created_at, fulfilled_at FROM orders WHERE status = ?1 ORDER BY created_at DESC LIMIT 50',
+    )
+      .bind(status_filter)
+      .all();
+    return json_response({ success: true, orders: results ?? [] });
+  }
+
+  if (action === 'fulfill') {
+    // Called by the issuer daemon after signing + registering the license.
+    // Records the store-key → Talus-license mapping (the "translation").
+    const store = str_field(body.value.store);
+    const order_id = str_field(body.value.order_id);
+    const license_id = str_field(body.value.license_id);
+    const talus_license_key = str_field(body.value.talus_license_key);
+    const store_key = str_field(body.value.store_key);
+    if (!store || !order_id || !license_id || !talus_license_key || !store_key) {
+      return json_response(
+        { success: false, message: 'missing store/order_id/license_id/talus_license_key/store_key' },
+        400,
+      );
+    }
+    const key_hash = await sha256_hex(normalize_store_key(store_key));
+    const now = now_iso();
+    // Guard: the order must exist and be pending (a refund must never be
+    // over-fulfilled). Missing order → explicit 404, not a thrown error.
+    const order_row = await env.DB.prepare(
+      'SELECT status FROM orders WHERE store = ?1 AND order_id = ?2',
+    )
+      .bind(store, order_id)
+      .first();
+    if (!order_row) {
+      return json_response(
+        { success: false, message: `no order ${store}/${order_id} — webhook not received` },
+        404,
+      );
+    }
+    if (order_row.status !== 'pending') {
+      return json_response(
+        { success: false, message: `order ${store}/${order_id} is ${order_row.status}, not pending` },
+        409,
+      );
+    }
+    // D1 batch takes bound STATEMENTS (no .run() inside the array).
+    try {
+      await env.DB.batch([
+        env.DB.prepare(
+          `INSERT INTO store_keys (store, store_key_hash, license_id, talus_license_key, issued_at)
+           VALUES (?1, ?2, ?3, ?4, ?5)
+           ON CONFLICT(store, store_key_hash) DO UPDATE SET
+             license_id = excluded.license_id,
+             talus_license_key = excluded.talus_license_key`,
+        ).bind(store, key_hash, license_id, talus_license_key, now),
+        env.DB.prepare(
+          `UPDATE orders SET status = 'fulfilled', license_id = ?3, fulfilled_at = ?4,
+           store_key_hash = ?5, store_key_hint = ?6
+           WHERE store = ?1 AND order_id = ?2 AND status = 'pending'`,
+        ).bind(store, order_id, license_id, now, key_hash, key_hint(store_key)),
+      ]);
+    } catch (err) {
+      // Admin-only endpoint; surfacing the D1 error is safe and speeds up ops.
+      return json_response(
+        { success: false, message: `fulfill db error: ${String(err)}` },
+        500,
+      );
+    }
+    return json_response({
+      success: true,
+      message: `order ${order_id} fulfilled — store key mapped to ${license_id}`,
+    });
   }
 
   if (action === 'register') {
@@ -946,6 +1135,9 @@ async function record_login_failure(env, auth_code) {
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────
+
+// Re-exported store-bridge helpers used by admin handlers.
+import { normalize_store_key, key_hint } from './store-bridge.js';
 
 async function sha256_hex(s) {
   const digest = await crypto.subtle.digest(

@@ -67,6 +67,20 @@ All notable changes to talus-process-monitor will be documented in this file.
   unit tests for the TOTP/base32 core (`license-server/test/`); E2E suite
   green 14/14 against production
 
+**New: store integrations — buy on Polar / Gumroad / Lemon Squeezy**
+- Signed platform webhooks (`/api/v1/webhook/{polar,gumroad,lemonsqueezy}`)
+  create pending orders in D1; HMAC-verified per platform, idempotent,
+  refund events automatically revoke the mapped license
+- `POST /api/v1/redeem` + transparent client-side redemption: a customer
+  pastes their **store** key into `talus license activate` and the server
+  translates it into the real Ed25519-signed Talus license
+- `scripts/issuer-daemon.mjs` (owner's machine) fulfills pending orders:
+  signs a license, pre-registers it, maps store-key → Talus key
+- Admin panel: store orders fulfillment queue; admin `orders`/`fulfill`
+  endpoints
+- Store keys are stored only as SHA-256 hashes; the signing key never
+  leaves the owner's machine
+
 **New: keygen & ops tooling**
 - `talus-keygen issue --seats N` — seat count baked into the signed payload;
   `--json` flag for machine-readable output (used by automation)

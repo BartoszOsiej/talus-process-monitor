@@ -719,6 +719,13 @@ talus-keygen issue ──► signed key (Ed25519) ──► customer
               expiry, revocation, seat limits ──► activation token
 ```
 
+**Buying from a store (Polar / Gumroad / Lemon Squeezy)?** You don't need a
+special Talus key at all — paste the license key you received from the
+store straight into `talus license activate <KEY>`. The activation server
+recognizes store purchases and translates the store key into your Talus
+license automatically (signing happens offline; store keys are stored only
+as hashes).
+
 - Keys are **Ed25519-signed**; the binary embeds only the public key
 - The **activation server** (`license-server/`) holds the public key only —
   the signing key never leaves the owner's machine
