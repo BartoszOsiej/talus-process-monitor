@@ -360,8 +360,8 @@ impl EliasFano {
 
         // Count full words within the superblock
         let sb_start = sb_idx * SUPERBLOCK_WORDS;
-        for i in sb_start..word_idx.min(self.high_bits.len()) {
-            count += self.high_bits[i].count_ones() as usize;
+        for &word in &self.high_bits[sb_start..word_idx.min(self.high_bits.len())] {
+            count += word.count_ones() as usize;
         }
 
         // Partial word
@@ -395,10 +395,11 @@ impl EliasFano {
         let word_start = sb * SUPERBLOCK_WORDS;
 
         // Linear scan within superblock
-        for w in word_start..self.high_bits.len() {
-            let ones = self.high_bits[w].count_ones() as usize;
+        for (offset, &word) in self.high_bits[word_start..].iter().enumerate() {
+            let ones = word.count_ones() as usize;
             if remaining < ones {
                 // The target 1-bit is within this word
+                let w = word_start + offset;
                 return w * 64 + select_in_word(self.high_bits[w], remaining);
             }
             remaining -= ones;
@@ -437,9 +438,10 @@ impl EliasFano {
         let mut remaining = k - (sb_total_bits - sb_ones);
         let word_start = sb * SUPERBLOCK_WORDS;
 
-        for w in word_start..self.high_bits.len() {
-            let zeros = self.high_bits[w].count_zeros() as usize;
+        for (offset, &word) in self.high_bits[word_start..].iter().enumerate() {
+            let zeros = word.count_zeros() as usize;
             if remaining < zeros {
+                let w = word_start + offset;
                 return Some(w * 64 + select0_in_word(self.high_bits[w], remaining));
             }
             remaining -= zeros;

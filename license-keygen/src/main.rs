@@ -300,19 +300,15 @@ fn cmd_issue(
         None
     };
 
-    // Generate license ID
+    // Generate license ID — RANDOM, not timestamp-derived. Batch issuing
+    // (e.g. 100 codes for a store) happens well within one second, so a
+    // time-based ID produced duplicates. 12 hex chars from OsRng give ~2^48
+    // of space; the registry still guarantees uniqueness per key store.
     let id = license_id.unwrap_or_else(|| {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let ts = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-        format!(
-            "TALUS-{:04X}-{:04X}-{:04X}",
-            (ts >> 32) & 0xFFFF,
-            (ts >> 16) & 0xFFFF,
-            ts & 0xFFFF
-        )
+        use rand::RngCore;
+        let mut buf = [0u8; 6];
+        OsRng.fill_bytes(&mut buf);
+        format!("TALUS-{:02X}{:02X}-{:02X}{:02X}-{:02X}{:02X}", buf[0], buf[1], buf[2], buf[3], buf[4], buf[5])
     });
 
     // Build payload

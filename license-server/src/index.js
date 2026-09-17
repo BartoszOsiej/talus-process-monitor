@@ -523,9 +523,13 @@ async function handle_admin(request, env, pathname) {
   }
 
   // The orders listing does not target a single license — it is keyed by
-  // status only. Every other action requires a license_id.
+  // status only. Every other action requires a license_id. Declared with
+  // `let` here (NOT inside the if-block): the action handlers below close
+  // over this binding, and a block-scoped const would be a ReferenceError
+  // for any action that skips the guard (regression: register → 500).
+  let license_id = null;
   if (action !== 'orders' && action !== 'fulfill') {
-    const license_id = str_field(body.value.license_id);
+    license_id = str_field(body.value.license_id);
     if (!license_id) {
       return json_response({ success: false, message: 'missing license_id' }, 400);
     }
