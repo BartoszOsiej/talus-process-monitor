@@ -12,6 +12,13 @@ name = "talus-license-server"
 main = "src/index.js"
 compatibility_date = "2026-09-01"
 
+# Serve the admin panel's static assets as strings (imported by src/index.js).
+# Login = ADMIN_TOKEN + TOTP; session in D1 (hash-only).
+rules = [
+  { type = "Text", globs = ["**/*.html", "**/*.css"], fallthrough = true },
+  { type = "Text", globs = ["**/admin-assets/*.js"], fallthrough = true },
+]
+
 [observability]
 enabled = false
 

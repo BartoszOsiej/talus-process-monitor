@@ -12,6 +12,9 @@
       (created by `talus-keygen init`; if you ever re-run `init`, **all
       previous keys are void** — see SECURITY.md rotation runbook).
 - [ ] Activation server is up: `scripts/health-check.sh` → `✓ healthy`.
+- [ ] Admin panel TOTP is set up: `scripts/setup-totp.sh` (scan the QR with
+      Google Authenticator; you'll need the code + auth code to sign in at
+      the hosted panel `/admin`).
 - [ ] Keygen is built: `cd license-keygen && cargo build --release`.
 - [ ] Payment channel is chosen (Gumroad / Lemon Squeezy / manual transfer).
 - [ ] Prices decided **outside** this repo (see `docs/pricing-tiers.md`).
@@ -21,7 +24,8 @@ Secrets map:
 | Secret | Location | Used for |
 |---|---|---|
 | Ed25519 private key | `~/.secrets/talus/license-keys/signing_key.json` | signing licenses |
-| Admin token | `~/.secrets/talus/admin_token` | `scripts/revoke-license.sh`, `scripts/list-activations.sh` |
+| Admin token | `~/.secrets/talus/admin_token` | `scripts/revoke-license.sh`, `scripts/list-activations.sh`, panel auth code |
+| TOTP seed | `~/.secrets/talus/totp_secret` | login at the hosted `/admin` panel |
 | Cloudflare API token | `~/.cloudflare_token` | deploying the worker |
 
 ---
@@ -135,15 +139,21 @@ After the customer runs `talus license activate <KEY>`, check seats:
 
 Expected: one row — their `machine_id`, hostname, `seat_index: 1`.
 
+Or open the hosted panel and look there:
+**<https://talus-license-server.metaforicmail.workers.dev/admin>** — sign in
+with the auth code + the 6-digit TOTP code from Google Authenticator, use
+**Lookup license** to see the seat, **Actions** for revoke / restore /
+free-seat. (Local variant: `cd admin-panel && node server.mjs`.)
+
 ## 7. Ongoing operations
 
 | Task | Command |
 |---|---|
 | List issued licenses | `talus-keygen list` |
 | Check server health | `./scripts/health-check.sh` |
-| List who activated | `./scripts/list-activations.sh <ID>` |
-| Refund / piracy → revoke | `./scripts/revoke-license.sh <ID> "reason"` |
-| Free a stuck seat | `revoke-license.sh` (frees all seats) then re-issue a fresh key |
+| List who activated | `./scripts/list-activations.sh <ID>` (or the `/admin` panel) |
+| Refund / piracy → revoke | `./scripts/revoke-license.sh <ID> "reason"` or the panel |
+| Free a stuck seat | panel → **free seat**, or `revoke-license.sh` (frees all seats) |
 
 Revocation notes:
 

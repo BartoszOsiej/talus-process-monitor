@@ -25,3 +25,6 @@ wrangler.local.toml
 
 # license-server
 node_modules/
+
+# Wrangler local dev state
+.wrangler/

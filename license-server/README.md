@@ -10,8 +10,15 @@ with a D1 database on the **free tier (no credit card required)**.
 | `/api/v1/activate` | POST | — | Verify signature, enforce expiry/revocation/seats, return activation token |
 | `/api/v1/deactivate` | POST | token | Release the machine's seat (token required) |
 | `/api/v1/health` | GET | — | Service status |
-| `/api/v1/admin/revoke` | POST | Bearer `ADMIN_TOKEN` | Revoke a license (frees all seats) |
-| `/api/v1/admin/activations` | POST | Bearer `ADMIN_TOKEN` | List activations for a license |
+| `/admin` | GET | session / — | **Admin panel web UI** (login page when unauthenticated) |
+| `/admin/login` | POST | auth code + TOTP | Two-factor login, sets an HttpOnly session cookie (12 h) |
+| `/admin/logout` | POST | session | Destroy the session |
+| `/admin/session-check` | GET | session / Bearer | Probe whether the current credentials are valid |
+| `/api/v1/admin/stats` | GET | Bearer / session | Overview counters + recent activations + revocations |
+| `/api/v1/admin/revoke` | POST | Bearer / session | Revoke a license (frees all seats) |
+| `/api/v1/admin/unrevoke` | POST | Bearer / session | Undo a revocation |
+| `/api/v1/admin/activations` | POST | Bearer / session | List activations for a license |
+| `/api/v1/admin/free-seat` | POST | Bearer / session | Release one machine's seat |
 
 ## Client contract (from `process-monitor/src/license.rs`)
 
@@ -40,8 +47,34 @@ with a D1 database on the **free tier (no credit card required)**.
   activation, so `talus-keygen issue` needs no server round-trip.
 - **Rate limiting**: 5 activation attempts / 5 min per machine, plus a loose
   global abuse brake (fixed window in D1).
-- **No secrets in the repo**: `ADMIN_TOKEN` is a Worker secret
-  (`wrangler secret put ADMIN_TOKEN`). Never committed, never logged.
+- **No secrets in the repo**: `ADMIN_TOKEN` and `TOTP_SECRET` are Worker
+  secrets (`wrangler secret put`). Never committed, never logged.
+
+## Admin panel (web UI, TOTP)
+
+The worker serves the admin panel itself at **`/admin`** — no local process
+needed. Login is two-factor:
+
+1. **Auth code** — the `ADMIN_TOKEN` value (possession factor)
+2. **TOTP** — 6-digit code from Google Authenticator or any RFC 6238 app
+   (something you have)
+
+A successful login sets an **HttpOnly, Secure, SameSite=Strict** session
+cookie valid for 12 hours (only the SHA-256 hash of the session token is
+stored in D1). TOTP time-steps are single-use — a captured code cannot be
+replayed. Failed logins are rate-limited (10 / 5 min).
+
+One-time setup (owner only; displays the QR code exactly once):
+
+```bash
+./scripts/setup-totp.sh            # generate + upload secret + show QR
+./scripts/setup-totp.sh --rotate   # later: invalidate all previous codes
+```
+
+The same panel also exists as a **local variant** in `admin-panel/` (token
+stays on your machine, talks to the worker through a Node proxy) — see that
+directory's README. All `/api/v1/admin/*` endpoints additionally accept the
+plain bearer token, so CLI scripts and the local panel keep working.
 
 ## Deploy (free tier, no credit card)
 
@@ -55,11 +88,14 @@ npx wrangler d1 create talus-licenses
 # 2. Apply the schema (remote)
 npx wrangler d1 execute talus-licenses --remote --file=schema.sql
 
-# 3. Set the admin secret
+# 3. Set the admin secrets
 npx wrangler secret put ADMIN_TOKEN
 
 # 4. Deploy
 npx wrangler deploy
+
+# 5. Set up the TOTP login for /admin (owner-only, shows the QR once)
+../scripts/setup-totp.sh
 ```
 
 The worker URL is printed at the end of `wrangler deploy`

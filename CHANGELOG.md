@@ -52,6 +52,19 @@ All notable changes to talus-process-monitor will be documented in this file.
 - Backed by new worker endpoints: `GET /api/v1/admin/stats`,
   `POST /api/v1/admin/unrevoke`, `POST /api/v1/admin/free-seat`
 
+**New: hosted admin panel with TOTP (`/admin` on the worker)**
+- The worker now serves the panel itself at `/admin` — browser access from
+  anywhere, no local process required
+- Two-factor login: `ADMIN_TOKEN` (auth code) + TOTP (Google Authenticator,
+  RFC 6238, HMAC-SHA1 via WebCrypto); `scripts/setup-totp.sh` generates the
+  seed, uploads it as a Worker secret and shows the QR code exactly once
+- Sessions in D1 (12 h, only SHA-256 hashes stored; HttpOnly / Secure /
+  SameSite=Strict cookie), TOTP replay protection (`totp_used`), failed
+  login rate limiting (10 / 5 min)
+- All `/api/v1/admin/*` endpoints accept bearer **or** session credentials;
+  unit tests for the TOTP/base32 core (`license-server/test/`); E2E suite
+  green 14/14 against production
+
 **New: keygen & ops tooling**
 - `talus-keygen issue --seats N` — seat count baked into the signed payload
 - `scripts/issue-license.sh`, `scripts/revoke-license.sh`,

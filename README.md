@@ -729,6 +729,23 @@ talus-keygen issue ──► signed key (Ed25519) ──► customer
 
 Customer walkthrough: [docs/customer-activation-guide.md](docs/customer-activation-guide.md)
 
+### Admin Panel (owner only)
+
+The license server ships with a browser admin panel — the worker serves it
+at [`/admin`](https://talus-license-server.metaforicmail.workers.dev/admin).
+Login is two-factor: auth code (`ADMIN_TOKEN`) + a 6-digit TOTP code from
+Google Authenticator. Sessions last 12 h; a used TOTP code can never be
+replayed. There is also a local-only variant in [`admin-panel/`](admin-panel/)
+(token never leaves your machine). Day-to-day ops:
+
+```bash
+scripts/issue-license.sh        # issue a signed license key
+scripts/revoke-license.sh       # block a key everywhere
+scripts/list-activations.sh     # who activated where
+scripts/health-check.sh         # is the server up
+../scripts/setup-totp.sh        # one-time: enable TOTP login for /admin
+```
+
 ### Source Code License
 
 MIT (see [LICENSE](LICENSE) for details)

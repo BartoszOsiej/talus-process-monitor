@@ -1,4 +1,9 @@
-# Talus Admin Panel
+# Talus Admin Panel (local variant)
+
+> **Prefer the hosted panel?** The worker serves the same UI at
+> `https://talus-license-server.metaforicmail.workers.dev/admin`, protected by
+> auth code + TOTP (Google Authenticator). This local variant exists for
+> working strictly from your own machine, without browser sessions.
 
 Local web UI for administering the Talus license server — run it on your
 machine, point your browser at `http://localhost:8787`.

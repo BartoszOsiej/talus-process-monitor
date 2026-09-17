@@ -47,3 +47,22 @@ CREATE TABLE IF NOT EXISTS rate_events (
 CREATE INDEX IF NOT EXISTS idx_rate_events_ts ON rate_events (ts);
 
 CREATE INDEX IF NOT EXISTS idx_activations_license ON activations (license_id);
+
+-- ── Admin panel (worker-hosted UI, TOTP login) ─────────────────────────────
+
+-- Web sessions for /admin. Only the SHA-256 hash of the session token is
+-- stored, so a D1 snapshot cannot be replayed as a session. Expired rows are
+-- pruned on each login.
+CREATE TABLE IF NOT EXISTS sessions (
+  token_hash TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL,
+  last_seen  TEXT NOT NULL,
+  expires_at TEXT NOT NULL
+);
+
+-- TOTP replay protection: a time-step counter that was already consumed by a
+-- successful login can never be accepted again (within its validity window).
+CREATE TABLE IF NOT EXISTS totp_used (
+  counter INTEGER PRIMARY KEY,
+  used_at TEXT NOT NULL
+);

@@ -390,6 +390,16 @@ Przewodnik dla kupującego:
 [docs/pricing-tiers.md](docs/pricing-tiers.md) (bez kwot — ustala je
 właściciel przy sprzedaży).
 
+### Panel administracyjny (tylko właściciel)
+
+Worker serwuje panel administracyjny pod adresem
+[`/admin`](https://talus-license-server.metaforicmail.workers.dev/admin).
+Logowanie dwuskładnikowe: kod autoryzacyjny (`ADMIN_TOKEN`) + 6-cyfrowy kod
+TOTP z Google Authenticator. Sesja ważna 12 h; wykorzystany kod TOTP nie może
+być użyty ponownie. Dostępna jest też wariant lokalny w
+[`admin-panel/`](admin-panel/) (token nie opuszcza Twojej maszyny).
+Włączenie TOTP (jednorazowo): `scripts/setup-totp.sh`.
+
 ### 30-dniowy trial Enterprise
 
 Przy pierwszym uruchomieniu Talus włącza **30-dniowy trial Enterprise** —

@@ -65,6 +65,39 @@ verbatim in this report above.
 | Expired key | `talus license activate <expired-KEY>` | ✅ `Error: license … has expired` |
 | Revoked-before-activation key | `talus license activate <revoked-KEY>` | ✅ `activation failed (403): license … has been revoked` |
 
+## 3b. Hosted admin panel E2E — TOTP login + sessions (14/14 PASS)
+
+Suite: login page, unauthenticated probes, wrong-token/wrong-TOTP logins,
+valid login + cookie, TOTP replay rejection, session-check, overview page,
+stats via cookie, drift ±1 acceptance, logout invalidation, bearer backward
+compat, static assets. Run against **production**
+(`https://talus-license-server.metaforicmail.workers.dev/admin`).
+
+| Step | Expected | Result |
+|---|---|---|
+| `GET /admin` unauthenticated | 200, login page | ✅ |
+| `GET /admin/session-check` w/o cookie | 401 | ✅ |
+| `GET /api/v1/admin/stats` w/o auth | 401 | ✅ |
+| Login with wrong TOTP | 401, no cookie | ✅ |
+| Login with wrong auth code + valid TOTP | 401, TOTP step **not** consumed | ✅ |
+| Login with valid auth code + current TOTP | 200, HttpOnly `talus_admin_session` cookie | ✅ |
+| Replay of the same TOTP step | 401 (replay guard) | ✅ |
+| `GET /admin` with session | 200, overview UI | ✅ |
+| `GET /admin/session-check` with cookie | 200 | ✅ |
+| `GET /api/v1/admin/stats` with cookie | 200 | ✅ |
+| Login with drift +1 TOTP code | 200 (window ±1 step) | ✅ |
+| `POST /admin/logout` then session-check | 200 → 401 (session destroyed) | ✅ |
+| `GET /api/v1/admin/stats` with bearer token | 200 (backward compat) | ✅ |
+| `GET /admin/app.js` + `/admin/style.css` | 200 | ✅ |
+
+Unit tests for the TOTP/base32 core: `node --test test/` in
+`license-server/` — 4/4 PASS (RFC 6238 vectors verified against an
+independent Node-crypto HOTP reference).
+
+Post-run hygiene: test sessions and consumed TOTP steps were purged from D1
+(`sessions`, `totp_used`); the owner sets the production seed with
+`scripts/setup-totp.sh`.
+
 ## 4. Issues found and fixed during verification
 
 | Finding | Fix |
@@ -73,6 +106,9 @@ verbatim in this report above.
 | Admin endpoint returned 401 with the correct token | Secret file contained a trailing newline (from `openssl rand > file`); server now trims the bearer header and the secret, secret re-uploaded |
 | Rate limiter consumed by double requests from the first test harness | Harness fixed to a single curl per assertion; D1 test state wiped between runs |
 | `scripts/*.sh` read the token file with `read -r` (non-zero exit on a final line without newline; would keep trailing whitespace) | Both scripts now read via `tr -d '[:space:]'` |
+| Admin UI assets served via `admin_js()` etc. after moving to text imports — `TypeError: admin_js is not a function` (HTTP 500 on `/admin/app.js`) | Assets are strings now; `new Response(admin_js)` without call parens |
+| `session-check` returned 200 unauthenticated (`require_admin(...) !== null` is always true) | Compare `authz.admin === true` |
+| A wrong auth code consumed the caller's TOTP step (verification order) — the owner had to wait 30 s for the next code after a typo | Auth code is checked **before** TOTP; TOTP is consumed only on a valid auth code |
 
 ## 5. Post-verification state hygiene
 

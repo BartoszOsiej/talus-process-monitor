@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "deploy": "wrangler deploy",
-    "tail": "wrangler tail"
+    "tail": "wrangler tail",
+    "test": "node --test test/"
   },
   "dependencies": {},
   "devDependencies": {
