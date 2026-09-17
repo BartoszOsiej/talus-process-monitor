@@ -96,14 +96,14 @@ async function fulfill(order) {
   });
   if (reg.status !== 200) throw new Error(`register failed: ${reg.status}`);
 
-  const ful = await api('/api/v1/admin/fulfill', {
+  const fulfilled = await api('/api/v1/admin/fulfill', {
     store: order.store,
     order_id: order.order_id,
     license_id: lic.license_id,
     talus_license_key: lic.license_key,
     store_key: order.store_key,
   });
-  if (ful.status !== 200) throw new Error(`fulfill failed: ${ful.status}`);
+  if (fulfilled.status !== 200) throw new Error(`fulfill failed: ${fulfilled.status}`);
 
   console.log(`✓ ${order.store}/${order.order_id} → ${lic.license_id}`);
   return lic.license_id;

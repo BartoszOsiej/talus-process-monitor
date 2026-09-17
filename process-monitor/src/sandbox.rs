@@ -770,12 +770,18 @@ mod tests {
         assert!(!caps.is_empty() || unsafe { libc::geteuid() } != 0);
     }
 
+    // Miri cannot emulate the landlock syscalls (e.g. 444 on x86_64);
+    // the call is a plain syscall wrapper, not undefined behaviour.
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn landlock_abi_check_does_not_panic() {
         // This should return 0 on unsupported kernels, or >= 1 on supported ones
         let _version = get_landlock_abi_version();
     }
 
+    // apply() installs a landlock ruleset under the hood — same Miri
+    // limitation as landlock_abi_check_does_not_panic above.
+    #[cfg_attr(miri, ignore)]
     #[test]
     fn sandbox_apply_does_not_panic() {
         let tmp = std::env::temp_dir().join("talus_sandbox_test");

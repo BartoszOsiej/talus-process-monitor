@@ -50,10 +50,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb  # nightly
+      - uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb
         with:
+          # Pinned: latest nightly regularly breaks bpf-linker/clippy builds
+          # (see ebpf job). Move all three pins together.
+          toolchain: nightly-2026-08-15
           components: clippy
-      - run: cargo clippy --all-targets --all-features -- -D warnings
+      - run: cargo +nightly-2026-08-15 clippy --all-targets --all-features -- -D warnings
 
   # ── TESTY ───────────────────────────────────────────────────
   test:
@@ -113,7 +116,7 @@ jobs:
             export LD_LIBRARY_PATH
             break
           done
-          cargo +nightly build --profile bpf --target bpfel-unknown-none -Z build-std=core --manifest-path process-monitor-ebpf/Cargo.toml
+          cargo +nightly-2026-08-15 build --profile bpf --target bpfel-unknown-none -Z build-std=core --manifest-path process-monitor-ebpf/Cargo.toml
 
   # ── MIRI ────────────────────────────────────────────────────
   miri:
@@ -125,11 +128,12 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb  # nightly
+      - uses: dtolnay/rust-toolchain@7c8d7d138f5c09cef361f8214cf96882cd029cdb
         with:
+          toolchain: nightly-2026-08-15
           components: miri
-      - run: cargo miri setup
-      - run: cargo miri test
+      - run: cargo +nightly-2026-08-15 miri setup
+      - run: cargo +nightly-2026-08-15 miri test
         env:
           # disable-isolation: some tests read directory listings (opendir);
           # that is filesystem access, not undefined behaviour.

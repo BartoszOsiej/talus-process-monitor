@@ -32,6 +32,9 @@ allow = [
     "0BSD",
     "Unicode-3.0",
     "MPL-2.0",
+    # Data license of the Knuth-Liang hyphenation pattern tables embedded
+    # by the `hyphenation` crate (ftui-text font/shaping feature).
+    "LPPL-1.3c",
 ]
 
 [bans]

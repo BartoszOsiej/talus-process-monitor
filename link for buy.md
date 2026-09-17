@@ -11,5 +11,5 @@ https://buy.polar.sh/polar_cl_28JLJCk73sd8ugcsFrruInxtZo3uoU4ZgOJ3o3NjTJF
 Zadania:
 1. Dodaj na landing page widoczny przycisk/link „Buy Enterprise License" wskazujący na powyższy checkout URL (Polar).
 2. Upewnij się, że link jest klikalny, poprawnie osadzony i prowadzi do działającego checkoutu.
-3. Zweryfikuj po deployu, że strona się renderuje i link nie jest zepsuty (HTTP 200, checkout pokazuje produkt Talus / $50).
+3. Zweryfikuj po deployu, że strona się renderuje i link nie jest zepsuty (HTTP 200, checkout pokazuje produkt Talus / 50 USD).
 4. Zachowaj dotychczasowy styl strony (aegis.css).

@@ -793,10 +793,19 @@ mod tests {
         assert_eq!(loaded.param_count(), model.param_count());
         assert_eq!(loaded.training_samples, model.training_samples);
         let feats = [0.3, 0.5, 0.6, 0.7, 0.2, 0.4, 0.8, 0.5, 0.1, 0.2];
-        assert_eq!(
-            loaded.ransomware.forward(&feats),
-            model.ransomware.forward(&feats)
-        );
+        // Compare with a tolerance: the roundtrip goes through decimal
+        // serialization, and under Miri the float parse/exp shims differ
+        // from the native libm by a last-ulp — exact equality is too strict
+        // for a semantic "roundtrip preserves behaviour" claim.
+        let a = loaded.ransomware.forward(&feats);
+        let b = model.ransomware.forward(&feats);
+        assert_eq!(a.len(), b.len());
+        for (x, y) in a.iter().zip(b.iter()) {
+            assert!(
+                (x - y).abs() < 1e-5,
+                "roundtrip mismatch: {x} vs {y}"
+            );
+        }
     }
 
     #[test]

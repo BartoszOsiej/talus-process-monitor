@@ -18,11 +18,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - uses: EmbarkStudios/cargo-deny-action@1e8d2410a22b066dcd6370dd37feb341b3f37aff  # v2
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25  # v2
         with:
           command: check licenses
           arguments: --all-features
-      - uses: EmbarkStudios/cargo-deny-action@1e8d2410a22b066dcd6370dd37feb341b3f37aff  # v2
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25  # v2
         with:
           command: check advisories
           arguments: --all-features
@@ -42,8 +42,12 @@ jobs:
         run: cargo install cargo-cyclonedx
       - name: Generate SBOM
         run: |
-          cargo cyclonedx --format json --output-dir sbom/
-          cargo cyclonedx --format xml --output-dir sbom/
+          # cargo-cyclonedx has no --output-dir; it writes next to the
+          # manifest, so target the userspace crate and collect the files.
+          mkdir -p sbom/
+          cargo cyclonedx --manifest-path process-monitor/Cargo.toml --format json
+          cargo cyclonedx --manifest-path process-monitor/Cargo.toml --format xml
+          find . -name '*.cdx.json' -o -name '*.cdx.xml' | xargs -I{} cp {} sbom/
       - name: Verify SBOM
         run: |
           echo "=== CycloneDX JSON SBOM ==="
@@ -76,7 +80,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@0d016524cf814ffe95c92e8156889c7c6b680e86  # v2
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
