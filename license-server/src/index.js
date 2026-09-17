@@ -73,6 +73,10 @@ export default {
         return handle_deactivate(request, env);
       }
 
+      if (pathname === '/api/v1/admin/stats' && request.method === 'GET') {
+        return handle_admin_stats(request, env);
+      }
+
       if (pathname.startsWith('/api/v1/admin/') && request.method === 'POST') {
         return handle_admin(request, env, pathname);
       }
@@ -403,7 +407,112 @@ async function handle_admin(request, env, pathname) {
     return json_response({ success: true, activations: results ?? [] });
   }
 
+  if (action === 'unrevoke') {
+    // Reverse of revoke: clear the flag and the pre-activation entry.
+    // Seats were already freed by the revocation — customers re-activate.
+    await env.DB.batch([
+      env.DB.prepare('UPDATE licenses SET revoked = 0 WHERE license_id = ?1').bind(license_id),
+      env.DB.prepare('DELETE FROM revocations WHERE license_id = ?1').bind(license_id),
+    ]);
+    return json_response({ success: true, message: `license ${license_id} restored` });
+  }
+
+  if (action === 'free-seat') {
+    const machine_id = str_field(body.value.machine_id);
+    if (!machine_id) {
+      return json_response({ success: false, message: 'missing machine_id' }, 400);
+    }
+    const { meta } = await env.DB.prepare(
+      'DELETE FROM activations WHERE license_id = ?1 AND machine_id = ?2',
+    )
+      .bind(license_id, machine_id)
+      .run();
+    const freed = meta?.changes ?? 0;
+    return json_response({
+      success: true,
+      freed,
+      message: freed > 0 ? `seat ${machine_id} freed` : 'no matching activation',
+    });
+  }
+
   return json_response({ success: false, message: 'unknown admin action' }, 404);
+}
+
+// ── Admin: overview stats ─────────────────────────────────────────────────
+// Served under GET /api/v1/admin/stats (auth via the same bearer token).
+
+async function handle_admin_stats(request, env) {
+  if (!env.DB) return env_error('DB binding');
+  if (!env.ADMIN_TOKEN) return env_error('ADMIN_TOKEN');
+
+  const auth = (request.headers.get('Authorization') ?? '').trim();
+  const expected = `Bearer ${String(env.ADMIN_TOKEN).trim()}`;
+  if (auth.length !== expected.length || !timing_safe_equal(auth, expected)) {
+    return json_response({ success: false, message: 'unauthorized' }, 401);
+  }
+
+  const count = async (sql, ...binds) => {
+    const row = await env.DB.prepare(sql)
+      .bind(...binds)
+      .first();
+    return row?.n ?? 0;
+  };
+
+  const licenses = await count('SELECT COUNT(*) AS n FROM licenses');
+  const revoked = await count('SELECT COUNT(*) AS n FROM licenses WHERE revoked = 1');
+  const activations = await count('SELECT COUNT(*) AS n FROM activations');
+  const week_ago = new Date(Date.now() - 7 * 86400_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const activations_7d = await count(
+    'SELECT COUNT(*) AS n FROM activations WHERE activated_at >= ?1',
+    week_ago,
+  );
+
+  // Single-table queries merged in JS — avoids D1 join quirks.
+  const { results: recent_rows } = await env.DB.prepare(
+    'SELECT license_id, machine_id, hostname, activated_at FROM activations ORDER BY activated_at DESC LIMIT 10',
+  ).all();
+
+  const { results: license_rows } = await env.DB.prepare(
+    'SELECT license_id, tier, org, expires_at, revoked FROM licenses',
+  ).all();
+  const license_map = new Map((license_rows ?? []).map((l) => [l.license_id, l]));
+
+  const { results: revocation_rows } = await env.DB.prepare(
+    'SELECT license_id, reason, revoked_at FROM revocations',
+  ).all();
+  const revocation_map = new Map((revocation_rows ?? []).map((r) => [r.license_id, r]));
+
+  // Union of revoked sources: flagged licenses + pre-activation revocations.
+  const revoked_ids = new Set([
+    ...(license_rows ?? []).filter((l) => l.revoked).map((l) => l.license_id),
+    ...(revocation_rows ?? []).map((r) => r.license_id),
+  ]);
+  const revoked_list = [...revoked_ids].map((id) => {
+    const lic = license_map.get(id);
+    const rev = revocation_map.get(id);
+    return {
+      license_id: id,
+      org: lic?.org ?? null,
+      revoked_at: rev?.revoked_at ?? null,
+      reason: rev?.reason ?? null,
+    };
+  });
+
+  const recent = (recent_rows ?? []).map((a) => {
+    const l = license_map.get(a.license_id);
+    return { ...a, tier: l?.tier ?? null, org: l?.org ?? null, revoked: l?.revoked ?? 0 };
+  });
+
+  return json_response({
+    success: true,
+    licenses,
+    revoked,
+    activations,
+    activations_7d,
+    recent,
+    revoked_list,
+    time: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+  });
 }
 
 // ── Rate limiting ─────────────────────────────────────────────────────────
