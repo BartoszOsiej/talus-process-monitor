@@ -801,10 +801,7 @@ mod tests {
         let b = model.ransomware.forward(&feats);
         assert_eq!(a.len(), b.len());
         for (x, y) in a.iter().zip(b.iter()) {
-            assert!(
-                (x - y).abs() < 1e-5,
-                "roundtrip mismatch: {x} vs {y}"
-            );
+            assert!((x - y).abs() < 1e-5, "roundtrip mismatch: {x} vs {y}");
         }
     }
 
