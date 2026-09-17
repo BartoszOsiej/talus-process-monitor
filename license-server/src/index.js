@@ -668,9 +668,13 @@ async function handle_admin_login(request, env) {
   // Check the auth code FIRST: a failed overall login must not consume the
   // caller's TOTP step (otherwise a typo in the auth code would force the
   // owner to wait 30 s for the next code).
-  const expected = `Bearer ${String(env.ADMIN_TOKEN).trim()}`;
-  const auth_ok =
-    auth_code.length === expected.length && timing_safe_equal(auth_code, expected);
+  // Accept both the raw token (what the login form asks for) and the
+  // "Bearer <token>" form (CLI habit).
+  const raw = String(env.ADMIN_TOKEN).trim();
+  const auth_ok = [raw, `Bearer ${raw}`].some(
+    (candidate) =>
+      auth_code.length === candidate.length && timing_safe_equal(auth_code, candidate),
+  );
   if (!auth_ok) {
     await record_login_failure(env, auth_code);
     return json_response({ success: false, message: 'invalid credentials' }, 401);
