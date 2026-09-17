@@ -1,38 +1,51 @@
 # Contributing
 
-Dziekuje za zainteresowanie projektem!
+Thank you for your interest in the project!
 
 ## Setup
 
-1. Wymagany Rust nightly (build eBPF) lub toolchain z sekcji CI.
-2. Sklonuj repo, zainstaluj zaleznosci, uruchom testy:
+1. Rust nightly is required for the eBPF build (or the toolchain used in CI).
+2. Clone the repo, install dependencies, and run the checks:
    - `cargo fmt --check`
    - `cargo clippy -- -D warnings`
    - `cargo test`
 
-## Zglaszanie problemow
+If your change touches the licensing code (`process-monitor/src/license.rs`,
+`license-keygen/`, `license-server/`), also make sure:
 
-Zanim powstanie issue, sprawdz czy nie istnieje juz na liscie. Opisz:
+- **Never** commit, print, or log signing keys, admin tokens, or issued
+  license keys. Keys live outside the repo (`~/.secrets/talus/license-keys/`).
+- `cargo test -p process-monitor --bin process-monitor` passes — including
+  `key_integrity_check`.
+- The activation server contract (`license-server/src/index.js`) stays
+  compatible with the client in `license.rs` (endpoints, field names,
+  response shape).
 
-- czego oczekiwales,
-- co dostales (logi, stack trace),
-- wersje systemu/toolchainu.
+## Reporting issues
 
-## Pull requesty
+Before opening an issue, check whether it already exists. Please describe:
 
-- Pisz male, zawarte zmiany (1 temat = 1 PR).
-- Utrzymuj zielony CI (fmt + clippy + testy).
-- Dodaj testy dla nowych zachowan.
-- Opisuj "dlaczego", nie tylko "co".
+- what you expected,
+- what you got (logs, stack trace),
+- system/toolchain version.
 
-Licencja projektu: MIT. Wysylajac PR akceptujesz ja dla swojej zmiany.
+## Pull requests
 
-## Bezpieczeństwo
+- Keep changes small and focused (1 topic = 1 PR).
+- Keep CI green (fmt + clippy + tests).
+- Add tests for new behavior.
+- Describe **why**, not just **what**.
 
-Talus monitoruje ransomware za pomocą eBPF — to projekt o charakterze
-bezpieczeństwa. Jeśli odkryjesz podatność, zgłoś ją prywatnie na
-`thethreadcalls@outlook.com`. Nie otwieraj publicznego issue dla
-podatności bezpieczeństwa.
+Project license: MIT. Submitting a PR means you accept it for your
+contribution.
+
+## Security
+
+Talus detects ransomware via eBPF — this is a security-focused project. If
+you discover a vulnerability, report it privately to `thethreadcalls@outlook.com`
+or via [GitHub Security Advisories](https://github.com/BartoszOsiej/talus-process-monitor/security/advisories/new)
+(see [SECURITY.md](SECURITY.md)). Do not open a public issue for security
+vulnerabilities.
 
 ## Commit style
 

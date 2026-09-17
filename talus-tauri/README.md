@@ -3,6 +3,11 @@
 Native desktop GUI for the Talus Endpoint Security Agent.  
 Built with **Tauri 2** (Rust backend) + **React 19** (TypeScript frontend) + **Recharts**.
 
+> The desktop app drives the same binary as the CLI: Enterprise features
+> (`--auto-kill`, web dashboard) require an activated Enterprise license —
+> activate first with `talus license activate <KEY>` (see the
+> [customer activation guide](../docs/customer-activation-guide.md)).
+
 ## Architecture
 
 ```

@@ -1,10 +1,9 @@
-## Opis zmiany
+## Change description
 
+## Tests
 
-## Testy
-
-- [ ] format/lint
-- [ ] testy przechodza (CI zielony)
-- [ ] dodane testy jesli dotyczy
+- [ ] fmt/clippy pass
+- [ ] tests pass (CI green)
+- [ ] new tests added if applicable
 
 Closes #

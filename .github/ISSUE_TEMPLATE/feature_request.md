@@ -1,14 +1,12 @@
 ---
 name: Feature request
-about: Zaproponuj usprawnienie
+about: Propose an improvement
 title: "[FEATURE] "
 labels: enhancement
 ---
 
-## Problem ktory rozwiazuje
+## Problem it solves
 
+## Proposed solution
 
-## Proponowane rozwiazanie
-
-
-## Alternatywy
+## Alternatives

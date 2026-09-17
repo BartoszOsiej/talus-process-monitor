@@ -8,9 +8,9 @@
 
 | Version | Supported | Notes |
 |---|---|---|
-| 0.5.x (latest) | ✅ | Active development, security patches |
-| 0.4.x | ⚠️ | Security fixes only (EOL: 2026-12-31) |
-| < 0.4.0 | ❌ | End of life — upgrade recommended |
+| 0.7.x (latest) | ✅ | Active development, security patches |
+| 0.6.x | ⚠️ | Security fixes only (EOL: 2027-06-30) |
+| < 0.6.0 | ❌ | End of life — upgrade recommended |
 
 ## Scope
 
@@ -41,7 +41,7 @@ Instead, use one of these **private** channels:
 | Channel | Best For | Response Time |
 |---|---|---|
 | **[GitHub Security Advisories](https://github.com/BartoszOsiej/talus-process-monitor/security/advisories/new)** | All vulnerabilities | Primary channel |
-| **Email: security@talus.dev** | Sensitive/critical issues | Backup channel |
+| **Email: thethreadcalls@outlook.com** | Sensitive/critical issues | Backup channel |
 
 ### What to Include
 
@@ -130,12 +130,85 @@ Each advisory includes:
 
 ---
 
-## Security Contacts
+## License & Key Security
+
+Talus ships a commercial licensing system (Ed25519-signed keys + online
+activation). This section documents its trust model and the owner-side key
+management runbook.
+
+### Trust Model
+
+| Component | Trust anchor |
+|---|---|
+| Talus binary | Ed25519 **public** key embedded at compile time (`PUBLIC_KEY_BYTES` in `process-monitor/src/license.rs`); compile-time XOR checksum (`KEY_CHECKSUM`) detects binary key tampering |
+| License keys | `base64(payload).base64(Ed25519 signature)` — unforgeable without the private key |
+| Activation server | Holds the **public** key only; verifies every signature, enforces expiry, revocation and seat limits in D1 (`license-server/`) |
+| Seat control | Authoritative server-side: `max_seats` enforced at activation; same-machine re-activation is idempotent; deactivation requires the activation token |
+| Local cache | `~/.config/talus/license.dat` — XOR-obfuscated (tamper-resistance, NOT confidentiality) and re-verified against the signed key on every load; any divergence from the signed payload invalidates the cache |
+| Trial marker | SHA-256 integrity tag bound to binary + machine (`compute_trial_checksum`) — edited or copied trial files are rejected |
+| Downgrade protection | Activating a Community key over a cached Enterprise license is refused until deactivation |
+| Offline grace | 30 days; verified licences keep working without network, expiry is still enforced |
+
+**Explicit limits (documented, by design):** an attacker with full control of
+the binary can patch out license checks entirely — signed keys protect the
+vendor's *distribution* channel, not a modified client. The local trial
+marker resists casual tampering, not a determined reverse engineer.
+
+### Key Storage & Backup
+
+- Private signing key lives **outside any repository**:
+  `~/.secrets/talus/license-keys/signing_key.json` (0700 dir / 0600 file).
+  `talus-keygen` refuses to store keys inside the repo and enforces
+  owner-only permissions.
+- Backup: one encrypted copy (e.g. `age`/`gpg` to a USB drive or password
+  manager attachment). If the private key is lost, no new licenses can be
+  signed — recovery means key rotation (below) and re-issuing every key.
+- The admin token for the activation server:
+  `~/.secrets/talus/admin_token` (0600); deployed as a Workers secret.
+- Nothing secret is committed: `.gitignore` blocks `license-keys/`,
+  `signing_key*`, `*.pem`, `.dev.vars`, `.env`.
+
+### Key Rotation Runbook
+
+Rotate when: the private key may have leaked, the machine holding keys is
+compromised, or as a periodic precaution.
+
+1. `cd license-keygen && cargo build --release`
+2. Generate a new keypair **outside the repo**:
+   `TALUS_KEYGEN_DIR=~/.secrets/talus/license-keys ./license-keygen/target/release/talus-keygen init`
+   (move the old `signing_key.json` aside first; it refuses to overwrite).
+3. Update `PUBLIC_KEY_BYTES` in `process-monitor/src/license.rs` with the new
+   public key (`talus-keygen export-public` prints it) — `KEY_CHECKSUM` is
+   derived automatically.
+4. Update `LICENSE_PUBLIC_KEY_HEX` in `license-server/wrangler.toml` and
+   `npx wrangler deploy`.
+5. Release a new binary build. All old keys verify against the old binary
+   only; **all previously issued licenses are void** on new builds.
+6. Re-issue keys for paying customers free of charge
+   (`docs/issue-first-license.md`).
+7. Commit the rotation with a clear message (key material never appears in
+   the commit).
+
+### License Leak Response
+
+If a license key is posted publicly or shared beyond its seats:
+
+1. `./scripts/revoke-license.sh <LICENSE_ID> "key leak"` — blocks all future
+   activations and frees all seats.
+2. Re-issue a fresh key to the legitimate customer.
+3. Never publish the revoked key or ID.
+4. If leak volume suggests the *signing key* is compromised (validly signed
+   keys appearing without an issuance record), run the full rotation runbook.
+
+### Reporting a License/Server Vulnerability
+
+Issues in the activation server, keygen, or license verification logic are in
+scope — report via the channels above.
 
 | Role | Contact |
 |---|---|
 | Security Lead | Bartosz Osiej |
-| Email | security@talus.dev |
+| Email | thethreadcalls@outlook.com |
 | GitHub | [@BartoszOsiej](https://github.com/BartoszOsiej) |
 | Advisory Portal | [GitHub Security](https://github.com/BartoszOsiej/talus-process-monitor/security) |
 
@@ -168,4 +241,4 @@ This security policy aligns with:
 
 ---
 
-*Policy version: 2.0 · Effective: 2026-08-28 · Review: 2027-02-28*
+*Policy version: 2.1 · Effective: 2026-09-17 · Review: 2027-03-17*

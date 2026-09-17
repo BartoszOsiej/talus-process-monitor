@@ -4,6 +4,63 @@ All notable changes to talus-process-monitor will be documented in this file.
 
 ## [Unreleased]
 
+### Secure Licensing Backend — key rotation, activation server, sales docs ✅
+
+**Security fixes**
+- **KEY ROTATION (breaking for old keys):** the Ed25519 private signing key
+  was committed in git history (`license-keygen/license-keys/`). A new keypair
+  was generated **outside the repository**
+  (`~/.secrets/talus/license-keys/`, 0700/0600); all previously issued
+  licenses are void. `PUBLIC_KEY_BYTES` updated; `KEY_CHECKSUM` is now
+  derived at compile time from the public key (no more hand-maintained XOR
+  chain, immune to clippy-visible edit errors).
+- `talus-keygen` no longer stores keys inside the repository — keys live in
+  `~/.secrets/talus/license-keys/` (or `TALUS_KEYGEN_DIR`), written 0600,
+  directory 0700. `license-keys/`, `signing_key*`, `*.pem`, `.dev.vars`,
+  `.env` added to `.gitignore`.
+- **License cache hardening:** the cached payload is re-verified against the
+  signed license key on every load; any local edit to tier/expiry/features/
+  seats invalidates the cache (fail-closed) and is audit-logged as
+  `CACHE_TAMPERED`.
+- **Trial marker hardening:** the 30-day trial record now carries a SHA-256
+  integrity tag bound to binary + machine (replaces the non-cryptographic
+  `DefaultHasher` checksum); edited or copied trial files are rejected
+  (`TRIAL_TAMPERED`).
+
+**New: activation server (`license-server/`)**
+- Cloudflare Worker + D1 on the **free tier (no credit card)** —
+  `https://talus-license-server.metaforicmail.workers.dev`
+- `POST /api/v1/activate` — server-side Ed25519 verification (server holds
+  the **public** key only), expiry/revocation checks, seat limits
+  (`max_seats` from the signed payload), idempotent same-machine
+  re-activation, D1-backed rate limiting (5 attempts / 5 min per machine +
+  global abuse brake)
+- `POST /api/v1/deactivate` — token-gated seat release
+- `GET /api/v1/health` — service status
+- Admin API (`/api/v1/admin/revoke`, `/api/v1/admin/activations`) gated by
+  the `ADMIN_TOKEN` Worker secret; revocation covers never-seen keys via a
+  `revocations` table and frees all seats
+- Binary default endpoint switched to the worker; `TALUS_LICENSE_SERVER`
+  override kept
+
+**New: keygen & ops tooling**
+- `talus-keygen issue --seats N` — seat count baked into the signed payload
+- `scripts/issue-license.sh`, `scripts/revoke-license.sh`,
+  `scripts/list-activations.sh`, `scripts/health-check.sh` (no secrets in
+  scripts; admin token read from `~/.secrets/talus/admin_token`)
+
+**New: sales-ready documentation**
+- `docs/EULA.txt` — license agreement template (no amounts)
+- `docs/pricing-tiers.md` — pricing **structure** (no amounts; owner sets
+  prices per sale)
+- `docs/customer-activation-guide.md` — buyer's step-by-step activation guide
+- `docs/issue-first-license.md` — owner runbook: payment → issue → deliver →
+  track, incl. optional payment-webhook automation notes
+- `SECURITY.md` — licensing trust model, key storage/backup, rotation
+  runbook, license-leak response
+- README/README.pl licensing sections rewritten; `ARCHITECTURE.md` gained a
+  licensing-subsystem section with the keygen → key → binary → server flow
+
 ### MeMLP — Neural Detection Engine (built from scratch) ✅
 
 - New `memlp.rs`: modular embedded multi-layer perceptron stack — no ML

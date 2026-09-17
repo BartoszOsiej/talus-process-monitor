@@ -339,6 +339,63 @@ sudo process-monitor --diagnose    # 5-sekundowa autodiagnostyka
 ./install.sh --uninstall --system   # systemowa
 ```
 
+## Licencjonowanie i ceny
+
+Talus występuje w dwóch edycjach — **Community** (darmowa, MIT) oraz
+**Enterprise** (płatna, z kluczami podpisanymi Ed25519 i aktywacją online).
+
+| Funkcja | Community (darmowa) | Enterprise |
+|---------|:---:|:---:|
+| Monitorowanie procesów eBPF | ✅ | ✅ |
+| Dashboard TUI (7 paneli) | ✅ | ✅ |
+| Wyjście JSON / plain text | ✅ | ✅ |
+| Alerty ransomware | ✅ | ✅ |
+| Auto-kill (tryb EDR) | ❌ | ✅ |
+| Dashboard webowy i REST API | ❌ | ✅ |
+| Strumieniowanie Kafka | ❌ | ✅ |
+| Analityka ClickHouse | ❌ | ✅ |
+| Grafy procesów MemGraph | ❌ | ✅ |
+| Biblioteka C FFI | ❌ | ✅ |
+| Priorytetowe wsparcie | ❌ | ✅ |
+
+### Jak działa licencjonowanie
+
+```
+talus-keygen issue ──► podpisany klucz (Ed25519) ──► klient
+                                                     │
+                                           talus license activate <KEY>
+                                                     ▼
+             Cloudflare Worker + D1 (darmowy tier) ── weryfikacja podpisu,
+             wygasanie, cofnięcia, limity stanowisk ──► token aktywacji
+```
+
+- Klucze są **podpisane Ed25519**; binarka osadza wyłącznie klucz publiczny
+- **Serwer aktywacyjny** (`license-server/`) też zna tylko klucz publiczny —
+  klucz prywatny nigdy nie opuszcza maszyny właściciela
+- **Limity stanowisk egzekwowane po stronie serwera**; przenosiny maszyny to
+  `deactivate` → `activate`
+- Cofnięte i wygasłe klucze są odrzucane przy aktywacji; lokalny cache jest
+  przy każdym uruchomieniu weryfikowany względem podpisu
+
+### Aktywacja
+
+```bash
+talus license activate <KLUCZ>
+talus license show
+```
+
+Przewodnik dla kupującego:
+[docs/customer-activation-guide.md](docs/customer-activation-guide.md)
+(EN) · warunki licencji: [docs/EULA.txt](docs/EULA.txt) · struktura cen:
+[docs/pricing-tiers.md](docs/pricing-tiers.md) (bez kwot — ustala je
+właściciel przy sprzedaży).
+
+### 30-dniowy trial Enterprise
+
+Przy pierwszym uruchomieniu Talus włącza **30-dniowy trial Enterprise** —
+wszystkie funkcje Enterprise są dostępne bez aktywacji.
+
 ## Licencja
 
-MIT
+Kod źródłowy edycji Community: MIT (patrz [LICENSE](LICENSE)).
+Edycja Enterprise objęta jest odrębną umową: [docs/EULA.txt](docs/EULA.txt).

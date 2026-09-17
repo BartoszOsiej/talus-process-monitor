@@ -1,7 +1,8 @@
 # Code of Conduct
 
-Zachowujemy szacunek. Oczekiwane: konstruktywna krytyka, brak nagonki, pomoc mlodszym.
+We treat each other with respect. Expected: constructive criticism, no
+pile-ons, helping newcomers.
 
-Nieakceptowane: harassment, ataki osobiste, spam.
+Not acceptable: harassment, personal attacks, spam.
 
-Naruszenia -> issue oznaczone jako "conduct" lub wylaczenie z projektu.
+Violations → an issue tagged `conduct`, or removal from the project.

@@ -1,22 +1,20 @@
 ---
 name: Bug report
-about: Zglos nieprawidlowe zachowanie
+about: Report incorrect behavior
 title: "[BUG] "
 labels: bug
 ---
 
-## Opis problemu
+## Description
 
-
-## Kroki reprodukcji
+## Steps to reproduce
 
 1.
 2.
 
-## Oczekiwane / aktualne zachowanie
+## Expected / actual behavior
 
-
-## Srodowisko
+## Environment
 
 - OS:
-- Toolchain/wersja:
+- Toolchain/version:

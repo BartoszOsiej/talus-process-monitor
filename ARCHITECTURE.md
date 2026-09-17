@@ -323,3 +323,74 @@ Add a variant to `Output` handling in `main.rs`, mirror `run_json` /
 3. Implement the `draw_*` function in `tui.rs`.
 4. Add to `draw_body` layout.
 5. Update `Panel::all()` and `Panel::name()`.
+
+---
+
+## 8. Licensing subsystem
+
+Talus has a commercial licensing layer (Community = MIT, Enterprise = paid)
+spanning four components:
+
+```
+┌────────────────────┐   signs    ┌─────────────────────────────┐
+│ talus-keygen       │──────────► │ license key                 │
+│ (owner machine,    │  Ed25519   │ b64(payload).b64(signature) │
+│  keys in           │            └──────────────┬──────────────┘
+│  ~/.secrets/talus/)│                           │ delivered to customer
+└────────────────────┘                           ▼
+                                   ┌─────────────────────────────┐
+                                   │ talus binary                │
+                                   │ process-monitor/src/        │
+                                   │   license.rs                │
+                                   │ • embedded PUBLIC key only  │
+                                   │ • local signature verify    │
+                                   │ • machine fingerprint T-…   │
+                                   │ • feature gating            │
+                                   └──────────────┬──────────────┘
+                                                  │ POST /api/v1/activate
+                                                  ▼
+                                   ┌─────────────────────────────┐
+                                   │ license-server (CF Worker)  │
+                                   │ • PUBLIC key only           │
+                                   │ • signature, expiry,        │
+                                   │   revocation checks         │
+                                   │ • seat limits in D1         │
+                                   │ • rate limit 5/5min/machine │
+                                   └─────────────────────────────┘
+```
+
+### Components
+
+| Component | Location | Trust anchor |
+|---|---|---|
+| Keygen CLI | `license-keygen/` | private key at `~/.secrets/talus/license-keys/` (never in repo) |
+| License module | `process-monitor/src/license.rs` | `PUBLIC_KEY_BYTES` embedded at compile time, XOR `KEY_CHECKSUM` derived from it |
+| Activation server | `license-server/` (Cloudflare Worker + D1, free tier) | `LICENSE_PUBLIC_KEY_HEX` var + `ADMIN_TOKEN` secret |
+| Ops scripts | `scripts/` (issue / revoke / list-activations / health-check) | owner's admin token |
+
+### Activation flow
+
+1. Customer runs `talus license activate <KEY>`.
+2. Binary verifies the Ed25519 signature locally, computes the machine
+   fingerprint (`T-…`), and POSTs `{license_key, machine_id, hostname,
+   version}` to the activation server (default
+   `https://talus-license-server.metaforicmail.workers.dev`, override via
+   `TALUS_LICENSE_SERVER`).
+3. Server re-verifies the signature, checks expiry, revocation
+   (`licenses.revoked` + `revocations`), and seats (`max_seats` from the
+   signed payload's `seat_count`); same-machine re-activation returns the
+   existing token (idempotent).
+4. Server responds `{success, token, expires_at, tier, message}`; the binary
+   caches the license (XOR-obfuscated, 0600) in `~/.config/talus/`.
+5. On every start the cached payload is re-verified against the signed key —
+   any divergence (tier/expiry/features/seats edited locally) invalidates the
+   cache (fail-closed).
+
+### Security properties and limits
+
+- The signing key exists on the owner's machine only; neither the binary nor
+  the server can mint licenses.
+- Server-side state (D1) is the source of truth for revocation and seats.
+- The local cache and trial marker are tamper-evident (cache ↔ signed-key
+  binding; SHA-256 trial tag) — documented as tamper-*resistance*, not
+  protection against a fully compromised binary (see SECURITY.md).

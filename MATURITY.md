@@ -5,28 +5,28 @@
 ## Maturity Levels Overview
 
 ```
-Level  0 ▓░░░░░░░░░░░░░░░░░░░░░░ Open Source Prototype
-Level  1 ▓▓░░░░░░░░░░░░░░░░░░░░░ Supply Chain Security Foundation
-Level  2 ▓▓▓░░░░░░░░░░░░░░░░░░░░ Build Provenance & Signing
-Level  3 ▓▓▓▓░░░░░░░░░░░░░░░░░░░ Security Hardening & Audit
-Level  4 ▓▓▓▓▓░░░░░░░░░░░░░░░░░░ Testing & Quality Gates
-Level  5 ▓▓▓▓▓▓░░░░░░░░░░░░░░░░░ Enterprise Licensing System ✅ CURRENT
-Level  6 ▓▓▓▓▓▓▓░░░░░░░░░░░░░░░░ Observability & Incident Response
-Level  7 ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░░ Documentation & Knowledge Mgmt
-Level  8 ▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░ Compliance Framework (SOC2/ISO27001)
-Level  9 ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░ Access Control & Secrets Management
-Level  9 ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░ Container & Image Security
-Level 10 ▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░ Network Security & mTLS
-Level 11 ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░ Data Protection & Encryption
-Level 12 ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░ Disaster Recovery & HA
-Level 13 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░ Change Management & Rollback
-Level 14 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░ Performance & Scalability
-Level 15 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░ Monitoring, SLIs & SLOs
-Level 16 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░ Business Continuity Planning
-Level 17 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░ Third-Party Risk Management
-Level 18 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ Audit & Compliance Automation
-Level 19 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ Zero Trust Architecture
-Level 20 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ Enterprise Grade (SOC2 Type II + ISO27001)
+Level  0  ▓░░░░░░░░░░░░░░░░░░░░░ Open Source Prototype
+Level  1  ▓▓░░░░░░░░░░░░░░░░░░░░ Supply Chain Security Foundation
+Level  2  ▓▓▓░░░░░░░░░░░░░░░░░░░ Build Provenance & Signing
+Level  3  ▓▓▓▓░░░░░░░░░░░░░░░░░░ Security Hardening & Audit
+Level  4  ▓▓▓▓▓░░░░░░░░░░░░░░░░░ Testing & Quality Gates
+Level 4.5 ▓▓▓▓▓▓░░░░░░░░░░░░░░░░ Secure Licensing & Activation ✅ CURRENT
+Level  5  ▓▓▓▓▓▓▓░░░░░░░░░░░░░░░ Observability & Incident Response 🔜 NEXT
+Level  6  ▓▓▓▓▓▓▓▓░░░░░░░░░░░░░░ Documentation & Knowledge Mgmt
+Level  7  ▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░░ Compliance Framework (SOC2/ISO27001)
+Level  8  ▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░░ Access Control & Secrets Management
+Level  9  ▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░░ Container & Image Security
+Level 10  ▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░░ Network Security & mTLS
+Level 11  ▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░░ Data Protection & Encryption
+Level 12  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░░ Disaster Recovery & HA
+Level 13  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░░ Change Management & Rollback
+Level 14  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░░ Performance & Scalability
+Level 15  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░░ Monitoring, SLIs & SLOs
+Level 16  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░░ Business Continuity Planning
+Level 17  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░░ Third-Party Risk Management
+Level 18  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░░ Audit & Compliance Automation
+Level 19  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ Zero Trust Architecture
+Level 20  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓ Enterprise Grade (SOC2 Type II + ISO27001)
 ```
 
 ---
@@ -125,6 +125,20 @@ Level 20 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ E
 **Test categories:** Edge cases · Property-like invariants · State transitions · Init state · Security · Sandbox
 
 **Remaining for full Level 4:** cargo-tarpaulin coverage, proptest integration, cargo-mutants
+
+---
+
+## Level 4.5 — Secure Licensing & Activation Backend ✅ IMPLEMENTED (2026-09-17)
+
+| Area | Implementation |
+|---|---|
+| **Signed license keys** | Ed25519 (`payload.signature`); public key embedded in the binary, private key held **outside the repository** at `~/.secrets/talus/license-keys/` |
+| **Key hygiene** | Leaked keypair (was committed to git history) rotated 2026-09-17; `talus-keygen` enforces repo-external key storage with 0700/0600 permissions; `.gitignore` blocks all secret patterns |
+| **Activation server** | Cloudflare Worker + D1, free tier — server-side signature verification, expiry, revocation, seat limits, rate limiting (see `license-server/`) |
+| **Seat enforcement** | Authoritative in D1 (`max_seats`); idempotent re-activation; token-gated deactivation |
+| **Client hardening** | License cache re-verified against the signed key on every load (fail-closed); SHA-256 trial integrity tag; downgrade protection |
+| **Ops tooling** | `scripts/issue-license.sh`, `revoke-license.sh`, `list-activations.sh`, `health-check.sh`; admin API behind a Workers secret |
+| **Sales readiness** | EULA template, pricing structure (no amounts), customer activation guide, first-license runbook |
 
 ---
 

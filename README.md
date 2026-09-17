@@ -617,6 +617,10 @@ talus license verify-audit       # Verify hash chain integrity
 | **Config HMAC** | HMAC on `license.dat` + `.trial.dat` detects tampering |
 | **Offline grace** | 30-day grace period without internet |
 | **Downgrade protection** | Cannot downgrade from Enterprise |
+| **Server-side seat enforcement** | `max_seats` checked in D1 at activation (`license-server/`) |
+| **Signed-key cache binding** | Local cache re-verified against the Ed25519 signature on every load — edited tier/expiry is rejected |
+| **Trial integrity tag** | SHA-256 tag ties the trial marker to binary + machine — copied/edited trial files are voided |
+| **Public-key-only server** | The activation worker cannot forge licenses even if fully compromised |
 
 ### Web Dashboard Security (`web.rs`)
 
@@ -680,10 +684,10 @@ sudo talus monitor --auto-kill
 talus license show              # View license status
 talus license activate <KEY>    # Activate online
 talus license deactivate        # Deactivate
-export-json         # Export as JSON
+talus license export-json       # Export as JSON
 talus license backup license.json       # Backup
 talus license restore license.json      # Restore
-transfer          # Transfer to another machine
+talus license transfer          # Transfer to another machine
 talus license audit-log          # View audit trail
 talus license verify             # Verify validity
 ```
@@ -694,9 +698,36 @@ Talus includes a **30-day Enterprise trial** on first run. No activation require
 
 ### Getting a License
 
-- 🌐 [talus.io/enterprise](https://talus.io/enterprise) — purchase online
-- 📧 [licensing@talus.io](mailto:licensing@talus.io) — volume licensing
-- 🏢 Enterprise agreements available for teams of 10+
+Enterprise licenses are sold directly by the author:
+
+- 🛒 Purchase via the payment link shared by the author (Gumroad / Lemon
+  Squeezy / bank transfer) — see the pricing **structure** in
+  [docs/pricing-tiers.md](docs/pricing-tiers.md) (amounts are set per sale,
+  not in the repo)
+- 📧 Contact: [@BartoszOsiej](https://github.com/BartoszOsiej) — volume &
+  team agreements (10+ seats)
+- 📜 Terms: [docs/EULA.txt](docs/EULA.txt)
+
+### How Licensing Works
+
+```
+talus-keygen issue ──► signed key (Ed25519) ──► customer
+                                                  │
+                                        talus license activate <KEY>
+                                                  ▼
+              Cloudflare Worker + D1 (free tier) ── signature check,
+              expiry, revocation, seat limits ──► activation token
+```
+
+- Keys are **Ed25519-signed**; the binary embeds only the public key
+- The **activation server** (`license-server/`) holds the public key only —
+  the signing key never leaves the owner's machine
+- **Seats are enforced server-side**; moving a machine is
+  `deactivate` → `activate`
+- Revoked or expired keys are refused at activation; local cache is
+  re-verified against the signed key on every load
+
+Customer walkthrough: [docs/customer-activation-guide.md](docs/customer-activation-guide.md)
 
 ### Source Code License
 
