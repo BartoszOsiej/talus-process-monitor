@@ -8,12 +8,20 @@
 # exactly once; rotate with --rotate (invalidates all previous codes).
 #
 # Usage:
-#   ./setup-totp.sh            # first setup
-#   ./setup-totp.sh --rotate   # replace the secret later
+#   ./setup-totp.sh              # first setup
+#   ./setup-totp.sh --upload     # re-upload an existing secret to the worker
+#   ./setup-totp.sh --rotate     # replace the secret later
 #
-# Requirements: qrencode (terminal QR), wrangler (CLOUDFLARE_API_TOKEN set).
+# Requirements: qrencode (terminal QR), wrangler (CLOUDFLARE_API_TOKEN set —
+# the script auto-loads it from ~/.cloudflare_token when present).
 
 set -euo pipefail
+
+# Wrangler needs an API token in non-interactive shells; load the owner's
+# token from the standard location unless it is already in the environment.
+if [[ -z "${CLOUDFLARE_API_TOKEN:-}" && -s "${CLOUDFLARE_TOKEN_FILE:-$HOME/.cloudflare_token}" ]]; then
+  export CLOUDFLARE_API_TOKEN="$(tr -d '[:space:]' < "${CLOUDFLARE_TOKEN_FILE:-$HOME/.cloudflare_token}")"
+fi
 
 SECRETS_DIR="${TALUS_SECRETS_DIR:-$HOME/.secrets/talus}"
 SECRET_FILE="$SECRETS_DIR/totp_secret"
@@ -21,7 +29,8 @@ ADMIN_TOKEN_FILE="$SECRETS_DIR/admin_token"
 LABEL="${TALUS_TOTP_LABEL:-Talus License Admin}"
 WRANGLER_DIR="$(cd "$(dirname "$0")/../license-server" && pwd)"
 
-if [[ "${1:-}" == "--rotate" ]]; then
+MODE="${1:-}"
+if [[ "$MODE" == "--rotate" ]]; then
   rm -f "$SECRET_FILE"
 fi
 
@@ -30,9 +39,14 @@ mkdir -p "$SECRETS_DIR"
 chmod 700 "$SECRETS_DIR"
 
 need_upload=1
-if [[ -s "$SECRET_FILE" ]]; then
+if [[ "$MODE" == "--upload" ]]; then
+  # Re-upload the existing secret (e.g. the first run generated it locally
+  # but the wrangler upload failed).
+  need_upload=1
+elif [[ -s "$SECRET_FILE" ]]; then
   echo "TOTP secret already exists at $SECRET_FILE — nothing to generate."
-  echo "Use --rotate to replace it (this invalidates all previous codes)."
+  echo "Use --rotate to replace it (invalidates all previous codes) or"
+  echo "--upload to (re-)upload the existing secret to the worker."
   need_upload=0
 else
   # 20 random bytes = 160-bit seed, the RFC 6238 recommendation.
