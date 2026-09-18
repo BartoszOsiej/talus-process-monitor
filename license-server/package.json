@@ -7,7 +7,7 @@
   "scripts": {
     "deploy": "wrangler deploy",
     "tail": "wrangler tail",
-    "test": "node --test test/"
+    "test": "node --test test/*.mjs"
   },
   "dependencies": {},
   "devDependencies": {

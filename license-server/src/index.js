@@ -59,6 +59,10 @@ import {
   resolve_key,
 } from './store-bridge.js';
 
+// Storage adapter: D1 binding when present (primary), otherwise Turso over
+// HTTP (shared storage for the failover deployment). Same surface either way.
+import { createDB } from './db.js';
+
 // POST /api/v1/redeem { key } — translate a store key into the mapped Talus
 // license. Rate-limited per key hash (8 tries / 5 min) to blunt guessing;
 // store keys are high-entropy, so brute force is impractical anyway.
@@ -144,6 +148,10 @@ const ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
 export default {
   async fetch(request, env) {
     try {
+      // Attach the storage adapter once per request: native D1 if the binding
+      // exists, otherwise a Turso-backed D1-compatible shim (failover mode).
+      env = { ...env, DB: createDB(env) };
+
       const url = new URL(request.url);
       const { pathname } = url;
 
