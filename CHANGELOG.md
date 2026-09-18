@@ -4,6 +4,31 @@ All notable changes to talus-process-monitor will be documented in this file.
 
 ## [Unreleased]
 
+### License server failover — shared Turso storage, automatic server switchover
+
+- **Storage decoupled from compute** (`license-server/src/db.js`): the worker
+  now runs unchanged on the native D1 binding OR on Turso (libSQL) over HTTP
+  — same D1-compatible surface (`.all()`, `.first()`, `.run()` with
+  `meta.changes`, `.batch()`).
+- **Failover worker** (`wrangler.failover.toml`):
+  `https://talus-license-failover.metaforicmail.workers.dev` — identical API
+  (activate/deactivate/admin/TOTP panel/webhooks/redeem) serving the SAME
+  shared Turso database as the primary, so seats and revocations are
+  identical on both.
+- **Primary switched to the shared Turso database**; the previous D1
+  database is kept as a frozen point-in-time snapshot (rollback instructions
+  in `docs/ops.md`).
+- **Client failover** (`process-monitor/src/license.rs`): activation,
+  deactivation and store-key redemption try the primary server first, then
+  the failover list — `TALUS_LICENSE_SERVER` (primary) and
+  `TALUS_LICENSE_SERVER_FAILOVER` (comma-separated; empty string disables).
+  Connection-level failures switch servers; HTTP-level answers (invalid
+  key, rate limit, revoked) are authoritative and never retried elsewhere.
+- Verified end-to-end: activation with a dead primary switches to the
+  failover worker and the seat is visible in the primary's admin stats
+  (shared state); `docs/ops.md` documents topology, secrets, recovery and
+  free-tier limits.
+
 ## [0.8.0] - 2026-09-17
 
 ### Secure Licensing Backend — key rotation, activation server, sales docs ✅

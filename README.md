@@ -713,8 +713,10 @@ talus-keygen issue ──► signed key (Ed25519) ──► customer
                                                   │
                                         talus license activate <KEY>
                                                   ▼
-              Cloudflare Worker + D1 (free tier) ── signature check,
-              expiry, revocation, seat limits ──► activation token
+              Cloudflare Worker + Turso (primary, free tier) ── signature
+              check, expiry, revocation, seat limits ──► activation token
+              (automatic failover: talus-license-failover worker —
+               same shared storage, transparent for the client)
 ```
 
 **Buying from a store (Polar / Gumroad / Lemon Squeezy)?** You don't need a
@@ -727,6 +729,12 @@ as hashes).
 - Keys are **Ed25519-signed**; the binary embeds only the public key
 - The **activation server** (`license-server/`) holds the public key only —
   the signing key never leaves the owner's machine
+- **Automatic failover**: activation, deactivation and store-key redemption
+  try the primary server first, then the failover worker — both serve the
+  same shared storage (Turso), so seats and revocations are identical
+  everywhere. Override with `TALUS_LICENSE_SERVER` (primary) and
+  `TALUS_LICENSE_SERVER_FAILOVER` (comma-separated endpoints; set it to an
+  empty string to disable failover)
 - **Seats are enforced server-side**; moving a machine is
   `deactivate` → `activate`
 - Revoked or expired keys are refused at activation; local cache is
