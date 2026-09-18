@@ -434,10 +434,73 @@ impl LicenseCache {
 
 // ── Online activation client ──────────────────────────────────────────────
 
-/// Activation server endpoint (configurable via env or default).
-fn activation_server_url() -> String {
-    std::env::var("TALUS_LICENSE_SERVER")
-        .unwrap_or_else(|_| "https://talus-license-server.metaforicmail.workers.dev".to_string())
+/// Activation server endpoints, in failover order (configurable via env).
+///
+///   Primary:   TALUS_LICENSE_SERVER (default: production worker)
+///   Failover:  TALUS_LICENSE_SERVER_FAILOVER — comma-separated list;
+///              unset → built-in failover worker, set to "" → disabled.
+///
+/// All servers share one storage (Turso), so failover is transparent: the
+/// same request is retried against the next endpoint when the previous one
+/// is unreachable at the connection level. HTTP-level errors (invalid key,
+/// rate limit, revoked) come from the shared state and are authoritative —
+/// they are NOT retried elsewhere.
+fn activation_server_urls() -> Vec<String> {
+    let primary = std::env::var("TALUS_LICENSE_SERVER")
+        .unwrap_or_else(|_| "https://talus-license-server.metaforicmail.workers.dev".to_string());
+    let mut urls = vec![primary];
+    match std::env::var("TALUS_LICENSE_SERVER_FAILOVER") {
+        Ok(list) if list.trim().is_empty() => {} // failover explicitly disabled
+        Ok(list) => urls.extend(
+            list.split(',')
+                .map(|s| s.trim().trim_end_matches('/').to_string())
+                .filter(|s| !s.is_empty()),
+        ),
+        Err(_) => urls.push("https://talus-license-failover.metaforicmail.workers.dev".to_string()),
+    }
+    urls
+}
+
+/// POST a JSON request to the activation API, trying each server in order.
+/// Connection-level failures (DNS, connect, timeout) fall through to the
+/// next server; the first reachable server's reply is returned as-is.
+fn post_activation_api<T: serde::de::DeserializeOwned>(
+    path: &str,
+    body: &impl serde::Serialize,
+    timeout_secs: u64,
+) -> Result<(reqwest::StatusCode, T)> {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .build()
+        .context("failed to create HTTP client")?;
+
+    let servers = activation_server_urls();
+    let mut last_err = None;
+    for (i, server_url) in servers.iter().enumerate() {
+        match client.post(format!("{server_url}{path}")).json(body).send() {
+            Ok(response) => {
+                let status = response.status();
+                let parsed: T = response
+                    .json()
+                    .with_context(|| format!("failed to parse response from {server_url}"))?;
+                return Ok((status, parsed));
+            }
+            Err(err) if i + 1 < servers.len() => {
+                eprintln!(
+                    "[talus] activation server {server_url} unreachable ({err}); trying failover"
+                );
+                last_err = Some(err);
+            }
+            Err(err) => {
+                return Err(anyhow::anyhow!(err)).context("failed to connect to activation server");
+            }
+        }
+    }
+    bail!(
+        "no activation server reachable (tried {}): {}",
+        servers.join(", "),
+        last_err.map(|e| e.to_string()).unwrap_or_default()
+    );
 }
 
 /// Activation request sent to the server.
@@ -485,20 +548,11 @@ fn check_activation_rate_limit() -> Result<()> {
 /// verifies the purchase mapping — the reply is a native signed key, so all
 /// downstream verification applies unchanged.
 fn redeem_store_key(store_key: &str) -> Result<String> {
-    let server_url = activation_server_url();
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .context("failed to create HTTP client")?;
-
-    let response = client
-        .post(format!("{server_url}/api/v1/redeem"))
-        .json(&serde_json::json!({ "key": store_key.trim() }))
-        .send()
-        .context("failed to connect to activation server")?;
-
-    let status = response.status();
-    let body: serde_json::Value = response.json().context("failed to parse redeem response")?;
+    let (status, body): (_, serde_json::Value) = post_activation_api(
+        "/api/v1/redeem",
+        &serde_json::json!({ "key": store_key.trim() }),
+        30,
+    )?;
 
     if !status.is_success() || !body["success"].as_bool().unwrap_or(false) {
         let msg = body["message"]
@@ -571,14 +625,6 @@ pub fn activate_license(key: &str) -> Result<LicenseCache> {
         .map(|h| h.to_string_lossy().into_owned())
         .unwrap_or_else(|_| "unknown".into());
 
-    let server_url = activation_server_url();
-
-    // Create HTTP client
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(30))
-        .build()
-        .context("failed to create HTTP client")?;
-
     let request = ActivationRequest {
         license_key: key.to_string(),
         machine_id: machine_id.clone(),
@@ -586,18 +632,8 @@ pub fn activate_license(key: &str) -> Result<LicenseCache> {
         version: env!("CARGO_PKG_VERSION").to_string(),
     };
 
-    eprintln!("[talus] contacting activation server: {server_url}");
-
-    let response = client
-        .post(format!("{server_url}/api/v1/activate"))
-        .json(&request)
-        .send()
-        .context("failed to connect to activation server")?;
-
-    let status = response.status();
-    let body: ActivationResponse = response
-        .json()
-        .context("failed to parse activation response")?;
+    let (status, body): (_, ActivationResponse) =
+        post_activation_api("/api/v1/activate", &request, 30)?;
 
     if !status.is_success() || !body.success {
         let msg = body.message.unwrap_or_else(|| "unknown error".into());
@@ -637,19 +673,16 @@ pub fn deactivate_license() -> Result<()> {
     let cache = LicenseCache::load()?.context("no license found — nothing to deactivate")?;
 
     if let Some(ref token) = cache.activation_token {
-        let server_url = activation_server_url();
-        let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
-            .build()
-            .context("failed to create HTTP client")?;
-
-        let _ = client
-            .post(format!("{server_url}/api/v1/deactivate"))
-            .json(&serde_json::json!({
+        // Best effort: release the seat via whichever server is reachable
+        // (shared storage — any one of them is authoritative).
+        let _: Result<(reqwest::StatusCode, serde_json::Value)> = post_activation_api(
+            "/api/v1/deactivate",
+            &serde_json::json!({
                 "license_id": cache.payload.license_id,
                 "token": token,
-            }))
-            .send();
+            }),
+            15,
+        );
     }
 
     audit_log(
