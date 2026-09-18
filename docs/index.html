@@ -174,7 +174,7 @@ footer .heart{color:var(--red);animation:heartbeat 1.5s infinite}
   <h1>Talus<br><span>Process Monitor</span></h1>
   <p class="subtitle">Real-time kernel-level process, file-operation, and network telemetry for Linux. Zero overhead. Zero agents. Just eBPF.</p>
   <div class="cta-group">
-    <a href="https://buy.polar.sh/polar_cl_28JLJCk73sd8ugcsFrruInxtZo3uoU4ZgOJ3o3NjTJF" class="btn btn-primary" rel="noopener">🛒 Buy Enterprise License — $50 one-time</a>
+    <a href="#enterprise" class="btn btn-primary">Get Enterprise — $50 one-time, free trial included →</a>
     <p style="text-align:center;margin-top:12px;"><em>Writeup: <a href="https://dev.to/bartoszosiej/detecting-ransomware-with-ebpf-in-rust-4779">Detecting ransomware with eBPF in Rust</a> — how the detection heuristic works, with code.</em></p>
     <a href="https://github.com/BartoszOsiej/talus-process-monitor" class="btn btn-secondary">View on GitHub</a>
     <a href="talus-enterprise-maturity-report.pdf" class="btn btn-secondary">📄 Enterprise Report (PDF)</a>
@@ -283,12 +283,36 @@ footer .heart{color:var(--red);animation:heartbeat 1.5s infinite}
 </section>
 
 <!-- Enterprise Maturity -->
+<section class="section" id="enterprise">
+  <h2 class="reveal">Community vs Enterprise</h2>
+  <p class="sub reveal">The community edition is free forever (MIT). Enterprise adds response, integrations, and scale — for less than the price of two pizzas.</p>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));max-width:900px;margin:0 auto">
+    <div class="card reveal reveal-delay-1">
+      <div class="card-icon g">🆓</div>
+      <h3>Community — $0 forever</h3>
+      <p>MIT licensed. Full TUI dashboard, real-time eBPF tracing (exec, files, network), ransomware alerts, and every detection heuristic. No feature bombs, no time limits, no account required.</p>
+      <a href="https://github.com/BartoszOsiej/talus-process-monitor" class="btn btn-secondary" style="margin-top:1.2rem;display:inline-block">Get from GitHub →</a>
+    </div>
+    <div class="card reveal reveal-delay-2" style="border-color:rgba(252,217,0,0.35);box-shadow:0 0 30px rgba(252,217,0,0.06)">
+      <div class="card-icon y">⚡</div>
+      <h3>Enterprise — <span style="color:var(--accent)">$50 one-time</span></h3>
+      <p style="margin-bottom:.8rem">That's a <strong>one-time payment</strong> — not a subscription. Perpetual license, yours forever, activates instantly on one machine.</p>
+      <p>✅ Web dashboard + REST API<br>✅ Auto-kill response (EDR mode)<br>✅ SIEM export: Kafka, ClickHouse, Memgraph<br>✅ FFI integrations &amp; MeMLP neural detection<br>✅ Every future Enterprise update</p>
+      <a href="https://buy.polar.sh/polar_cl_28JLJCk73sd8ugcsFrruInxtZo3uoU4ZgOJ3o3NjTJF" class="btn btn-primary" style="margin-top:1.2rem;display:inline-block" rel="noopener">Buy once — activate in seconds →</a>
+      <p style="font-size:.78rem;color:var(--muted);margin-top:.8rem">30-day trial included on first run — no card, no signup.</p>
+    </div>
+  </div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));max-width:900px;margin:2.5rem auto 0">
+    <div class="card reveal" style="padding:1.2rem;text-align:center"><p style="font-size:1.6rem;font-weight:800;color:var(--accent)">$4.17/mo</p><p style="font-size:.82rem">for a year of protection</p></div>
+    <div class="card reveal" style="padding:1.2rem;text-align:center"><p style="font-size:1.6rem;font-weight:800;color:var(--accent)">~1 h</p><p style="font-size:.82rem">of a sysadmin's time — one catch pays it back</p></div>
+    <div class="card reveal" style="padding:1.2rem;text-align:center"><p style="font-size:1.6rem;font-weight:800;color:var(--accent)">$0/mo</p><p style="font-size:.82rem">after the first year — perpetual</p></div>
+    <div class="card reveal" style="padding:1.2rem;text-align:center"><p style="font-size:1.6rem;font-weight:800;color:var(--accent)">∞</p><p style="font-size:.82rem">machines you can trace with the free edition</p></div>
+  </div>
+</section>
+
 <section class="section">
   <h2 class="reveal">Enterprise Ready</h2>
   <p class="sub reveal">Level 4 of 20 towards full enterprise maturity. Supply chain security, build provenance, code hardening, and quality gates — all automated.</p>
-  <div class="grid">
-    <div class="card reveal reveal-delay-1">
-      <div class="card-icon g">🔗</div>
       <h3>Supply Chain Security</h3>
       <p>cargo-deny license & advisory gates, CycloneDX SBOM, gitleaks secret scanning, dependency review on every PR.</p>
     </div>
@@ -309,9 +333,24 @@ footer .heart{color:var(--red);animation:heartbeat 1.5s infinite}
     </div>
   </div>
   <div style="text-align:center;margin-top:3rem">
-    <a href="https://buy.polar.sh/polar_cl_28JLJCk73sd8ugcsFrruInxtZo3uoU4ZgOJ3o3NjTJF" class="btn btn-primary" rel="noopener">🛒 Buy Enterprise License — $50 one-time</a>
+    <a href="https://buy.polar.sh/polar_cl_28JLJCk73sd8ugcsFrruInxtZo3uoU4ZgOJ3o3NjTJF" class="btn btn-primary" rel="noopener">🛒 Buy Enterprise — $50 once, free 30-day trial →</a>
     <p style="text-align:center;margin-top:12px;"><em>Writeup: <a href="https://dev.to/bartoszosiej/detecting-ransomware-with-ebpf-in-rust-4779">Detecting ransomware with eBPF in Rust</a> — how the detection heuristic works, with code.</em></p>
     <a href="talus-enterprise-maturity-report.pdf" class="btn btn-secondary">📄 Download Full Enterprise Report (PDF)</a>
+  </div>
+</section>
+
+<!-- How activation works -->
+<section class="section">
+  <h2 class="reveal">Activating Enterprise</h2>
+  <p class="sub reveal">Buy → get your key by email → one command. No account, no telemetry, no license server lock-in.</p>
+  <div class="code-block reveal">
+<span class="comment"># 1. Activate (key arrives by email right after purchase)</span>
+<span class="cmd">$</span> talus license activate TALUS-XXXXX-XXXXX-XXXXX-XXXXX
+<span class="output">✓ License bound to this machine (perpetual)</span>
+
+<span class="comment"># 2. Unlock everything — web dashboard, auto-kill, SIEM export</span>
+<span class="cmd">$</span> sudo talus monitor --web 0.0.0.0:8443 --auto-kill --kafka-brokers kafka:9092
+<span class="output">🌐 Web dashboard: https://0.0.0.0:8443</span>
   </div>
 </section>
 
