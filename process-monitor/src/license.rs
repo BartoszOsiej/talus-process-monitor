@@ -206,6 +206,9 @@ impl LicenseKey {
     ///
     /// Format: `<base64_payload>.<base64_signature>`
     pub fn parse(key_str: &str) -> Result<Self> {
+        // Tolerate copy-paste artifacts: trailing newlines/spaces from
+        // terminal or editor must never break activation.
+        let key_str = key_str.trim();
         let parts: Vec<&str> = key_str.split('.').collect();
         if parts.len() != 2 {
             bail!("invalid license key format: expected '<payload>.<signature>'");
@@ -580,6 +583,10 @@ fn redeem_store_key(store_key: &str) -> Result<String> {
 
 /// Activate a license key against the online server.
 pub fn activate_license(key: &str) -> Result<LicenseCache> {
+    // Normalize once: the trimmed key is used for verification, the server
+    // request AND the saved cache (so the cache always holds the clean form).
+    let key = key.trim();
+
     // Rate limit activation attempts
     check_activation_rate_limit()?;
 
