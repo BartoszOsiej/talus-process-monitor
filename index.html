@@ -3,25 +3,27 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="robots" content="noindex, follow" />
 <meta name="referrer" content="strict-origin-when-cross-origin" />
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'sha256-vpzFaIKDhnUlejX5/I0xNXSteEDiSQ/IqxAwHXxTkRY='; img-src 'self' data:; manifest-src 'self'; connect-src 'none'; base-uri 'none'; form-action https://buy.polar.sh; frame-ancestors 'none'" />
 <title>talu&#115;-process-monitor — Behavioral ransomware detection &amp; response for Linux | Hartwell Labs</title>
-<meta name="description" content="Behavioral ransomware detection with instant response for Linux server fleets. eBPF-based, ~280k events per second, seccomp and Landlock self-sandboxing, one static binary, no kernel modules. $50 per node, one year of updates." />
-<link rel="canonical" href="https://hartwell-labs.pl/talus.html" />
+<meta name="description" content="Behavioral ransomware detection with instant response for Linux fleets. eBPF-based, ~280k events/sec, seccomp and Landlock self-sandboxing, one static binary. $50 per machine per year; $30 from 10 machines." />
+<link rel="canonical" href="https://hartwell-labs.pl/talus-process-monitor/" />
+<link rel="alternate" hreflang="en" href="https://hartwell-labs.pl/talus-process-monitor/" />
+<link rel="alternate" hreflang="pl" href="https://hartwell-labs.pl/pl/talus-process-monitor/" />
+<link rel="alternate" hreflang="x-default" href="https://hartwell-labs.pl/talus-process-monitor/" />
 <meta property="og:site_name" content="Hartwell Labs" />
 <meta property="og:title" content="talu&#115;-process-monitor — detection to response in the same second" />
-<meta property="og:description" content="eBPF behavioral ransomware detection for Linux fleets. $50/node, self-hosted, no telemetry." />
+<meta property="og:description" content="eBPF behavioral ransomware detection for Linux fleets. per-machine licensing, self-hosted, no telemetry." />
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://hartwell-labs.pl/talus.html" />
+<meta property="og:url" content="https://hartwell-labs.pl/talus-process-monitor/" />
 <meta property="og:image" content="https://hartwell-labs.pl/assets/og-cover.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:title" content="talu&#115;-process-monitor — Hartwell Labs" />
-<meta name="twitter:description" content="eBPF behavioral ransomware detection for Linux fleets. $50/node, self-hosted." />
+<meta name="twitter:description" content="eBPF behavioral ransomware detection for Linux fleets. per-machine licensing, self-hosted." />
 <meta name="twitter:image" content="https://hartwell-labs.pl/assets/og-cover.png" />
-<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"talus-process-monitor","operatingSystem":"Linux","applicationCategory":"SecurityApplication","offers":{"@type":"Offer","price":"50.00","priceCurrency":"USD","url":"https://buy.polar.sh/polar_cl_E577BTilme4dnUFsfbG0aE4qo7QILaugmEjsA0oajKK"},"author":{"@type":"Organization","name":"Hartwell Labs","url":"https://hartwell-labs.pl/"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"talus-process-monitor","operatingSystem":"Linux","applicationCategory":"SecurityApplication","offers":[{"@type":"Offer","name":"Enterprise","description":"One key per machine, one year of updates","price":"50","priceCurrency":"USD","url":"https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09"},{"@type":"Offer","name":"Enterprise Fleet","description":"30 USD per machine per year, minimum 10 machines","price":"300","priceCurrency":"USD","url":"https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07"}],"author":{"@type":"Organization","name":"Hartwell Labs","url":"https://hartwell-labs.pl/"}}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
@@ -50,17 +52,17 @@
 
 <div class="container hero" style="padding-bottom:56px;">
   <div class="eyebrow">Flagship &middot; Rust &middot; eBPF</div>
-  <h1>Behavioral ransomware detection that answers with <span class="dim">a kill signal.</span></h1>
+  <h1>Talus Process Monitor &mdash; behavioral ransomware detection that answers with <span class="dim">a kill signal.</span></h1>
   <p class="lede">talu&#115;-process-monitor hooks syscall tracepoints in the Linux kernel, scores
   per-process open-rates in one-second windows and terminates the encryptor with SIGKILL &mdash;
   guardrailed, whitelist-aware, and never at the cost of the host. One static binary. No kernel
   modules. No telemetry.</p>
   <div class="hero-actions">
-    <a class="btn btn-primary" href="https://buy.polar.sh/polar_cl_E577BTilme4dnUFsfbG0aE4qo7QILaugmEjsA0oajKK">Buy Enterprise &mdash; $50/node</a>
+    <a class="btn btn-primary" href="https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09">Buy Enterprise &mdash; 1 machine</a>
     <a class="btn btn-secondary" href="/docs#talus">Deployment guide</a>
     <a class="btn btn-secondary" href="https://github.com/Hartwell-Labs/talus-process-monitor">Source ↗</a>
   </div>
-  <p style="margin-top:14px; color:var(--txt-3); font-size:13.5px;">$50 per node &middot; 12 months of updates &middot; license key delivered instantly on checkout &middot; VAT invoice via Polar &middot; or <a href="mailto:sales@hartwell-labs.pl?subject=Talus%20Enterprise%20quote%20%E2%80%94%20%2450%2Fnode&amp;body=Nodes%3A%0AHostnames%2FIP%3A%0AWhat%20you%20want%20detected%3A%0AProcurement%20process%3A%0A" style="color:var(--accent)">request a quote by email</a></p>
+  <p style="margin-top:14px; color:var(--txt-3); font-size:13.5px;">$50 per machine per year &middot; fleet tier from $30 &middot; one key per machine, delivered by email on payment &middot; VAT invoice &middot; or <a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Enterprise%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0AWhat%20you%20want%20detected%3A%0AProcurement%20process%3A%0A" style="color:var(--accent)">request a quote by email</a></p>
 </div>
 
 <div class="stats">
@@ -119,46 +121,62 @@
       <h2>Priced like a tool, not like a platform.</h2>
     </div>
     <div class="two-col">
-      <div class="pricing">
-        <div class="head">
-          <div class="amount">$50<small> / node / year</small></div>
-          <p style="color:var(--txt-2); font-size:14.5px; margin-top:6px;">Enterprise tier &mdash; one host, one year of updates.</p>
+      <div>
+        <div class="pricing" style="margin-bottom:22px;">
+          <div class="head">
+            <div class="amount">$50<small> / machine / year</small></div>
+            <p style="color:var(--txt-2); font-size:14.5px; margin-top:6px;">Enterprise tier &mdash; one key per machine, one year of updates.</p>
+          </div>
+          <ul>
+            <li>Web dashboard, REST API, WebSocket event stream</li>
+            <li>Auto-kill response engine with guardrails</li>
+            <li>SIEM forwarding (RFC5424 / CEF), Kafka, ClickHouse, MemGraph</li>
+            <li>One key per machine &mdash; a key activates on exactly one host</li>
+            <li>License key delivered by email the moment payment settles</li>
+            <li>Email support &mdash; 48h business-day response</li>
+            <li>Detection engine stays MIT, forever</li>
+          </ul>
+          <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09">Checkout &mdash; 1 machine</a><div style="text-align:center; margin-top:10px;"><a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Enterprise%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0AWhat%20you%20want%20detected%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">or request a quote / invoice by email</a></div></div>
         </div>
-        <ul>
-          <li>Web dashboard, REST API, WebSocket event stream</li>
-          <li>Auto-kill response engine with guardrails</li>
-          <li>SIEM forwarding (RFC5424 / CEF), Kafka, ClickHouse, MemGraph</li>
-          <li>License key delivered instantly on checkout</li>
-          <li>Email support &mdash; 48h business-day response</li>
-          <li>Detection engine stays MIT, forever</li>
-        </ul>
-        <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.polar.sh/polar_cl_E577BTilme4dnUFsfbG0aE4qo7QILaugmEjsA0oajKK">Checkout &mdash; $50</a><div style="text-align:center; margin-top:10px;"><a href="mailto:sales@hartwell-labs.pl?subject=Talus%20Enterprise%20quote%20%E2%80%94%20%2450%2Fnode&amp;body=Nodes%3A%0AHostnames%2FIP%3A%0AWhat%20you%20want%20detected%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">or request a quote / invoice by email</a></div></div>
-      </div>
-      <div class="pricing" style="margin-bottom:22px;">
-        <div class="head">
-          <div class="amount">$150<small> / session</small></div>
-          <p style="color:var(--txt-2); font-size:14.5px; margin-top:6px;">Support Session &mdash; two hours with the engineer who wrote it.</p>
+        <div class="pricing" style="margin-bottom:22px;">
+          <div class="head">
+            <div class="amount">$30<small> / machine / year</small></div>
+            <p style="color:var(--txt-2); font-size:14.5px; margin-top:6px;">Enterprise Fleet &mdash; the same features, minimum 10 machines.</p>
+          </div>
+          <ul>
+            <li>Everything in Enterprise, per machine</li>
+            <li>Minimum 10 machines &mdash; set the quantity on the checkout page</li>
+            <li>Each machine gets its own key, issued automatically on payment</li>
+            <li>One subscription, one invoice, cancel or change size any time</li>
+          </ul>
+          <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07">Checkout &mdash; $30 / year</a><div style="text-align:center; margin-top:10px; font-size:13px; color:var(--txt-3);">10 machines or more: <a href="https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07" style="color:var(--accent);">$30 / machine / year</a></div><div style="text-align:center; margin-top:10px;"><a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Fleet%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0ARenewal%20date%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">more than 500 machines, or net-30 &mdash; write to us</a></div></div>
         </div>
-        <ul>
-          <li>Screen-shared, recorded on request</li>
-          <li>Written follow-up: config diffs, tuning values, exact commands</li>
-          <li>14 days of email follow-up on the same topic</li>
-          <li>Tuning detectors &amp; response guardrails for your workload</li>
-          <li>Air-gapped install, or lab &rarr; production migration</li>
-        </ul>
-        <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.polar.sh/polar_cl_B5KVLFwuGp5MFrmzipMYv1tvOfVRj3W21PQja1jDvJs">Book a session &mdash; $150</a></div>
       </div>
       <div>
+        <div class="pricing" style="margin-bottom:22px;">
+          <div class="head">
+            <div class="amount">$150<small> / session, billed in USD</small></div>
+            <p style="color:var(--txt-2); font-size:14.5px; margin-top:6px;">Support Session &mdash; two hours with the engineer who wrote it.</p>
+          </div>
+          <ul>
+            <li>Screen-shared, recorded on request</li>
+            <li>Written follow-up: config diffs, tuning values, exact commands</li>
+            <li>14 days of email follow-up on the same topic</li>
+            <li>Tuning detectors &amp; response guardrails for your workload</li>
+            <li>Air-gapped install, or lab &rarr; production migration</li>
+          </ul>
+          <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.polar.sh/polar_cl_B5KVLFwuGp5MFrmzipMYv1tvOfVRj3W21PQja1jDvJs">Book a session &mdash; $150 USD</a></div>
+        </div>
         <h3 style="font-size:16px; margin-bottom:10px;">Component licensing</h3>
         <table class="spec">
           <tr><td>Detection engine (eBPF, scoring, sweep detectors)</td><td>MIT &mdash; free</td></tr>
-          <tr><td>Dashboard, REST API, WebSocket</td><td>$50/node</td></tr>
-          <tr><td>Auto-kill response path</td><td>$50/node</td></tr>
-          <tr><td>SIEM / Kafka / ClickHouse / MemGraph sinks</td><td>$50/node</td></tr>
+          <tr><td>Dashboard, REST API, WebSocket</td><td>per machine</td></tr>
+          <tr><td>Auto-kill response path</td><td>per machine</td></tr>
+          <tr><td>SIEM / Kafka / ClickHouse / MemGraph sinks</td><td>per machine</td></tr>
           <tr><td>Source</td><td>Public, MIT</td></tr>
         </table>
         <h3 style="font-size:16px; margin:26px 0 10px;">MSPs &amp; resellers</h3>
-        <p style="color:var(--txt-2); font-size:14.5px;">Batch prepaid keys at the $50 floor, your margin above, your pricing.
+        <p style="color:var(--txt-2); font-size:14.5px;">Fleet tier starts at $30 per machine for 10 or more &mdash; your margin above that.
         Write to <a href="mailto:important@hartwell-labs.pl" style="color:var(--accent)">important@hartwell-labs.pl</a>
         for the vendor order form &mdash; net-30 available on direct invoice.</p>
       </div>
@@ -203,6 +221,7 @@
     <div>
       <h5>Resources</h5>
       <a href="/docs">Documentation</a>
+      <a href="https://wiki.hartwell-labs.pl/">Wiki (Talus, Externum)</a>
       <a href="https://github.com/Hartwell-Labs">GitHub organization</a>
       <a href="https://github.com/Hartwell-Labs/talus-process-monitor/releases">Releases</a>
     </div>
@@ -210,7 +229,8 @@
       <h5>Company</h5>
       <a href="/company">About</a>
       <a href="/security">Security &amp; disclosure</a>
-      <a href="/.well-known/security.txt">security.txt</a>
+      <a href="/.well-known/security.txt">security.txt</a> <a href="/privacy/">Privacy policy</a>
+
     </div>
   </div>
   <div class="container f-fine">
