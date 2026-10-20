@@ -58,7 +58,8 @@
   guardrailed, whitelist-aware, and never at the cost of the host. One static binary. No kernel
   modules. No telemetry.</p>
   <div class="hero-actions">
-    <a class="btn btn-primary" href="https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09">Buy Enterprise &mdash; 1 machine</a>
+    <button type="button" class="btn btn-primary buy-btn" data-tier="single" data-fallback="https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09">Buy &mdash; <span class="buy-amount">1 machine</span></button>
+    <a class="btn btn-secondary trial-link" href="mailto:metaforicmail@proton.me?subject=Talus%2014-day%20trial&body=Please%20send%20me%20a%2014-day%20evaluation%20license%20for%20Talus.%0A%0AMachines:%201">Try 14 days free</a>
     <a class="btn btn-secondary" href="/docs#talus">Deployment guide</a>
     <a class="btn btn-secondary" href="https://github.com/Hartwell-Labs/talus-process-monitor">Source ↗</a>
   </div>
@@ -114,6 +115,117 @@
   </div>
 </section>
 
+<section id="trust">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Built for production</div>
+      <h2>Real-world guardrails, real-world results.</h2>
+      <p>Talus runs where attacks happen: inside the kernel, on your hosts, on your terms.</p>
+    </div>
+    <div class="prod-grid">
+      <div class="prod"><div class="row"><h4>eBPF-native</h4></div>
+        <p>Kernel-level process events via eBPF. No kernel modules, no reboot, near-zero overhead.</p></div>
+      <div class="prod"><div class="row"><h4>Privacy-first</h4></div>
+        <p>Runs entirely on your servers. No cloud dependency, no telemetry, no third-party servers.</p></div>
+      <div class="prod"><div class="row"><h4>Instant activation</h4></div>
+        <p>Buy through Stripe → activate in under 5 minutes. Ed25519-signed keys, server-side seats.</p></div>
+      <div class="prod"><div class="row"><h4>Active development</h4></div>
+        <p>Ship every week. See the <a href="/talus-process-monitor/changelog/" style="color:var(--accent)">changelog</a> and <a href="https://wiki.hartwell-labs.pl/projects/talus-process-monitor/">documentation</a>.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Three minutes, three steps</div>
+      <h2>From install to kill-switch.</h2>
+    </div>
+    <div class="steps-3">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Install</h3>
+        <p><code>pip install talus-process-monitor && talus license activate &lt;KEY&gt;</code> — eBPF probes attach to the kernel in seconds, zero config.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Activate</h3>
+        <p>One key per machine. Seats enforced server-side. 30-day Enterprise trial on first run — no card required.</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Monitor</h3>
+        <p>Real-time process events, anomaly alerts, SIGKILL under 1s. Fleet dashboard at your domain.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="comparison">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Why Talus?</div>
+      <h2>Standalone Linux, not Kubernetes.</h2>
+      <p>Talus monitors individual servers and small fleets — no sidecars, no cluster, no Helm.</p>
+    </div>
+    <table class="spec">
+      <thead><tr><th style="text-align:left">Feature</th><th>Talus</th><th>bpftrace</th><th>Falco</th><th>Tetragon</th></tr></thead>
+      <tbody>
+        <tr><td>eBPF kernel events</td><td>✅</td><td>✅</td><td>✅</td><td>✅</td></tr>
+        <tr><td>Process tree visualization</td><td>✅</td><td>❌</td><td>⚠️</td><td>⚠️</td></tr>
+        <tr><td>Fleet dashboard</td><td>✅</td><td>❌</td><td>⚠️</td><td>⚠️</td></tr>
+        <tr><td>Anomaly detection</td><td>✅</td><td>❌</td><td>✅</td><td>✅</td></tr>
+        <tr><td>No Kubernetes required</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>Standalone (no sidecar)</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+        <tr><td>Setup time</td><td>5 min</td><td>CLI only</td><td>30+ min</td><td>30+ min</td></tr>
+        <tr><td>Price / year</td><td>$50</td><td>Free</td><td>Free–$500+</td><td>Free–$500+</td></tr>
+        <tr><td>Privacy (no cloud)</td><td>✅</td><td>✅</td><td>⚠️</td><td>⚠️</td></tr>
+      </tbody>
+    </table>
+    <p class="note" style="margin-top:16px; color:var(--txt-2); font-size:13.5px;">Comparison based on publicly available documentation as of 2026. Talus targets standalone Linux servers, not Kubernetes-native security.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Questions</div>
+      <h2>Frequently asked.</h2>
+    </div>
+    <div class="faq">
+      <details><summary>How is Talus different from Falco or Tetragon?</summary><p>Talus is built for standalone Linux servers, not Kubernetes. No sidecars, no cluster, no Helm charts — deploy one binary and monitor.</p></details>
+      <details><summary>What are the system requirements?</summary><p>Linux kernel 5.8+ with BTF enabled. Ubuntu 20.04+, Debian 11+, RHEL 8+, Arch. Root for eBPF attachment. Minimal RAM/CPU overhead.</p></details>
+      <details><summary>How does licensing work?</summary><p>Single: one server, $50 / 200 PLN per year. Fleet: per-node, minimum 3 nodes ($30 / 117 PLN per node/year). Annual subscription, instant activation, cancel anytime.</p></details>
+      <details><summary>Can I try before buying?</summary><p>Yes — a 30-day Enterprise trial starts automatically on first run, no credit card. Need longer? <a href="mailto:metaforicmail@proton.me?subject=Talus%20extended%20trial" style="color:var(--accent)">Ask for 14 more days</a>.</p></details>
+      <details><summary>Is my data sent to the cloud?</summary><p>No. Talus runs entirely on your servers. The optional fleet dashboard aggregates from your own nodes — no third-party servers.</p></details>
+      <details><summary>What payment methods do you accept?</summary><p>Stripe checkout — card payments globally, priced in USD or PLN.</p></details>
+    </div>
+  </div>
+</section>
+
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"FAQPage",
+  "mainEntity":[
+    {"@type":"Question","name":"How is Talus different from Falco or Tetragon?","acceptedAnswer":{"@type":"Answer","text":"Talus is built for standalone Linux servers, not Kubernetes. No sidecars, no cluster, no Helm."}},
+    {"@type":"Question","name":"What are the system requirements?","acceptedAnswer":{"@type":"Answer","text":"Linux kernel 5.8+ with BTF. Ubuntu 20.04+, Debian 11+, RHEL 8+, Arch. Root for eBPF attachment."}},
+    {"@type":"Question","name":"How does licensing work?","acceptedAnswer":{"@type":"Answer","text":"Single: $50/200 PLN per year one server. Fleet: $30/117 PLN per node, min 3 nodes. Annual, cancel anytime."}},
+    {"@type":"Question","name":"Can I try before buying?","acceptedAnswer":{"@type":"Answer","text":"30-day Enterprise trial starts on first run, no card. Extended trial on request."}},
+    {"@type":"Question","name":"Is my data sent to the cloud?","acceptedAnswer":{"@type":"Answer","text":"No. Talus runs entirely on your servers. No third-party servers."}}
+  ]
+}
+</script>
+<style>
+.steps-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:22px;margin-top:14px}
+.step{border:1px solid var(--border);border-radius:14px;padding:22px;background:var(--bg);text-align:center}
+.step-number{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font:700 13px/30px Inter,system-ui,sans-serif;margin-bottom:10px}
+.faq details{border:1px solid var(--border);border-radius:12px;padding:4px 14px;margin-bottom:10px;background:var(--bg)}
+.faq summary{cursor:pointer;font-weight:600;color:var(--txt-2);font-size:14.5px;padding:8px 0}
+.trust-section,.step,.prod{border:1px solid var(--border);border-radius:12px}
+.sticky-cta{display:none}
+</style>
+
 <section id="pricing" style="border-top:1px solid var(--border);">
   <div class="container">
     <div class="section-head">
@@ -136,7 +248,7 @@
             <li>Email support &mdash; 48h business-day response</li>
             <li>Detection engine stays MIT, forever</li>
           </ul>
-          <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09">Checkout &mdash; 1 machine</a><div style="text-align:center; margin-top:10px;"><a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Enterprise%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0AWhat%20you%20want%20detected%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">or request a quote / invoice by email</a></div></div>
+          <div style="padding:0 30px 30px;"><button type="button" class="btn btn-primary buy-btn" style="width:100%; justify-content:center;" data-tier="single" data-fallback="https://buy.stripe.com/eVq3cw5Wa3PG5Opd232Fa09">Checkout &mdash; <span class="buy-amount">1 machine</span></button><div style="text-align:center; margin-top:10px;"><a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Enterprise%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0AWhat%20you%20want%20detected%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">or request a quote / invoice by email</a></div></div>
         </div>
         <div class="pricing" style="margin-bottom:22px;">
           <div class="head">
@@ -149,7 +261,7 @@
             <li>Each machine gets its own key, issued automatically on payment</li>
             <li>One subscription, one invoice, cancel or change size any time</li>
           </ul>
-          <div style="padding:0 30px 30px;"><a class="btn btn-primary" style="width:100%; justify-content:center;" href="https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07">Checkout &mdash; $30 / year</a><div style="text-align:center; margin-top:10px; font-size:13px; color:var(--txt-3);">10 machines or more: <a href="https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07" style="color:var(--accent);">$30 / machine / year</a></div><div style="text-align:center; margin-top:10px;"><a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Fleet%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0ARenewal%20date%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">more than 500 machines, or net-30 &mdash; write to us</a></div></div>
+          <div style="padding:0 30px 30px;"><button type="button" class="btn btn-primary buy-btn" style="width:100%; justify-content:center;" data-tier="fleet" data-fallback="https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07">Checkout &mdash; <span class="buy-amount">fleet $30/node</span></button><div style="text-align:center; margin-top:10px; font-size:13px; color:var(--txt-3);">10 machines or more: <a href="https://buy.stripe.com/dRmbJ270e5XO1y96DF2Fa07" style="color:var(--accent);">$30 / machine / year</a></div><div style="text-align:center; margin-top:10px;"><a href="mailto:contact@hartwell-labs.pl?subject=Talus%20Fleet%20quote&amp;body=Machines%3A%0AHostnames%2FIP%3A%0ARenewal%20date%3A%0AProcurement%20process%3A%0A" style="color:var(--accent); font-size:13px;">more than 500 machines, or net-30 &mdash; write to us</a></div></div>
         </div>
       </div>
       <div>
@@ -203,6 +315,40 @@
   </div>
 </section>
 
+<section id="related">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Other Hartwell Labs tools</div>
+      <h2>Security stack, one engineering house.</h2>
+    </div>
+    <div class="prod-grid">
+      <a class="prod" href="https://bo.hartwell-labs.pl/trustnode/"><div class="row"><h4>TrustNode</h4></div>
+        <p style="padding:0 22px 14px">A Solana-like validator written from scratch in Rust — for teams running validator infrastructure.</p></a>
+      <a class="prod" href="https://bo.hartwell-labs.pl/scryer/"><div class="row"><h4>Scryer</h4></div>
+        <p style="padding:0 22px 14px">Threat intelligence platform — lead intel built in-house in Rust/axum.</p></a>
+      <a class="prod" href="https://bo.hartwell-labs.pl/cyberforge/"><div class="row"><h4>CyberForge</h4></div>
+        <p style="padding:0 22px 14px">Four security tools (recon, web, hash, packets) — one async Rust core.</p></a>
+    </div>
+    <p style="margin-top:16px;color:var(--txt-2);font-size:13.5px">Each tool shares the same eBPF-first, no-Kubernetes, privacy-first DNA as Talus.</p>
+  </div>
+</section>
+
+<section id="newsletter-wrap">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">Email</div>
+      <h2>Get eBPF &amp; Linux security insights</h2>
+      <p style="color:var(--txt-2)">Monthly. No spam. Unsubscribe anytime.</p>
+    </div>
+    <form class="newsletter-form" style="display:flex;gap:10px;flex-wrap:wrap;max-width:540px"
+          action="mailto:metaforicmail@proton.me?subject=Newsletter%20subscribe" method="post" enctype="text/plain">
+      <input type="email" name="email" placeholder="you@example.com" required
+             style="flex:1 1 280px;padding:10px 14px;border:1px solid var(--border);border-radius:8px;font:inherit;font-size:15px">
+      <button type="submit" class="btn btn-primary">Subscribe</button>
+    </form>
+  </div>
+</section>
+
 <footer>
   <div class="container footer-grid">
     <div>
@@ -238,6 +384,87 @@
     <span>Szczecin, Poland</span>
   </div>
 </footer>
+<div class="sticky-cta" id="sticky-cta">
+  <span style="color:var(--txt-2);font-size:14px">🛰️ Monitor your Linux servers in real time</span>
+  <button type="button" class="buy-btn-pop" id="sticky-buy" style="background:var(--accent);color:#fff;border:0;padding:6px 16px;border-radius:8px;font-weight:600;cursor:pointer">Buy now →</button>
+</div>
+<div id="buy-error" class="buy-error" hidden style="display:none">
+  <div style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,.3);color:#f87171;padding:12px 16px;border-radius:10px;margin:16px 0;font-size:14px">
+    Stripe Checkout is temporarily unavailable. Email <a href="mailto:contact@hartwell-labs.pl?subject=Talus%20buy" style="color:#f87171;text-decoration:underline">contact@hartwell-labs.pl</a> for an invoice.
+  </div>
+</div>
+
 <script src="/assets/site.js" defer></script>
+<script type="text/javascript">
+(function () {
+  'use strict';
+  var LIC = 'https://lic.hartwell-labs.pl';
+  var LIC_URL = 'https://hartwell-labs.pl/talus-process-monitor/activated.html';
+
+  function detectCurrency() {
+    if (typeof navigator === 'undefined') return 'usd';
+    var lang = (navigator.language || 'en-US').toLowerCase();
+    var cur = navigator.language ? (new Intl.NumberFormat().resolvedOptions().currency || 'USD') : 'USD';
+    return String(cur).toLowerCase();
+  }
+  var currency = detectCurrency(); // 'usd' | 'pln'
+
+  // fleet node count pulled from the modal-less UI is fixed; enterprise quote links stay mailto.
+  function buy(tier, nodes) {
+    var btn = event && event.target ? event.target : document.activeElement;
+    var fb = btn.getAttribute('data-fallback');
+    btn.disabled = true;
+    btn.textContent = 'Redirecting…';
+    fetch(LIC + '/api/v1/checkout-session', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'accept': 'application/json' },
+      credentials: 'omit',
+      referrerPolicy: 'no-referrer',
+      body: JSON.stringify({ tier: tier, currency: currency, nodes: nodes || undefined })
+    })
+      .then(function (r) { if (!r.ok) throw new Error('status ' + r.status); return r.json(); })
+      .then(function (data) {
+        if (data && data.success && data.url) { window.location.href = data.url; return; }
+        throw new Error(data && data.message ? data.message : 'no url');
+      })
+      .catch(function () {
+        btn.disabled = false;
+        if (fb) { window.location.href = fb; return; }
+        var e = document.getElementById('buy-error');
+        if (e) { e.hidden = false; e.style.display = 'block'; }
+      });
+  }
+
+  // Wire pricing buttons (single + fleet). Fleet uses a sensible default of 3 nodes.
+  function wire(btn, tier) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      window.event = e; // buy() reads event.target
+      buy(tier, tier === 'fleet' ? 3 : undefined);
+    });
+  }
+  document.querySelectorAll('button.buy-btn').forEach(function (b) {
+    if (b.dataset.tier === 'fleet') wire(b, 'fleet');
+    else wire(b, 'single');
+  });
+  var sticky = document.getElementById('sticky-buy');
+  if (sticky) sticky.addEventListener('click', function (e) {
+    e.preventDefault(); window.event = e; buy('single', undefined);
+  });
+
+  // Sticky CTA visibility
+  var cta = document.getElementById('sticky-cta');
+  function toggle() {
+    if (!cta) return;
+    var y = window.scrollY || window.pageYOffset;
+    var h = window.innerHeight;
+    var py = document.body.scrollHeight - h - h * 0.3;
+    cta.style.display = (y > 600 && y > py) ? 'flex' : 'none';
+  }
+  window.addEventListener('scroll', toggle);
+  window.addEventListener('resize', toggle);
+  toggle();
+})();
+</script>
 </body>
 </html>
